@@ -1,4 +1,4 @@
-# 갤럭시 메모 앱 — 개발 명세서 & 로드맵
+# DayNote 앱 — 개발 명세서 & 로드맵
 
 > **캘린더를 기점으로** 메모를 추가·삭제·관리하는, To-Do + 생성형 AI 연동을 결합한 정제된 갤럭시 전용 노트 앱
 >
@@ -30,7 +30,7 @@
 |---|---|
 | 목표 | 노션식 메모를 단순화하고, 캘린더·할 일·AI 푸쉬를 자연스럽게 결합한 개인용 노트 앱 |
 | 핵심 동선 | **캘린더가 홈 화면이자 기본 진입점** — 날짜를 탭해 그날의 메모·할 일을 추가·삭제·조회한다 |
-| 타깃 기기 | 갤럭시 탭 / 갤럭시 폴드 (안드로이드 단일 타깃) |
+| 타깃 기기 | 갤럭시 탭 / 갤럭시 폴드 (Android) **+ Windows·macOS·Linux 데스크톱** — Compose Multiplatform로 단일 코드 공유 |
 | 디자인 원칙 | 화려함 배제, 정제된 여백 중심 UI, 빠른 입력 |
 | 데이터 원칙 | 오프라인 우선 — 네트워크 없이도 메모·할 일 완전 동작 |
 | 개발 형태 | 1인 개발 (본업 병행, 저녁·주말 작업 가정) |
@@ -44,8 +44,10 @@
 1. **노션식 블록 에디터를 만들지 않는다.** 마크다운 기반으로 가고, "블록"은 헤딩·체크리스트·인용 정도로 좁힌다. 이 한 가지가 프로젝트 성패를 가른다. 블록 드래그·중첩·인라인 위지윅을 구현하려는 충동이 들면 멈춘다.
 2. **오프라인 우선 — 로컬(Room)이 진실의 원천(Source of Truth)이다.** 모든 읽기·쓰기는 먼저 로컬 DB로 간다. 클라우드는 그 위에 얹는 동기화 계층일 뿐, 끊겨도 앱 본체는 정상 동작한다.
 3. **갤럭시 특화는 맨 나중에.** 폴드·S펜·대화면은 핵심 기능 완성 후 얹는 폴리시 단계로 분리한다.
+   - 단, **멀티플랫폼은 "특화"가 아니라 "기반"이다.** PC(데스크톱)를 1급 타깃으로 올렸으므로(아래 6번) Android 전용 API(폴드 감지·S펜·Sharesheet·Credential Manager)는 처음부터 `expect/actual` 또는 인터페이스 뒤로 격리하고, Android에서만 구현한다. 데스크톱은 대체 구현 또는 비활성.
 4. **데이터 계층은 Repository로 추상화한다.** UI·도메인은 데이터가 로컬에서 오는지 클라우드에서 오는지 몰라야 한다. 그래야 나중에 동기화 방식(드라이브 / Supabase / Firebase)을 코드 한 구석만 바꿔 교체할 수 있다.
 5. **캘린더가 기본 진입점이다.** 메모·할 일의 추가·삭제·조회는 "캘린더에서 날짜를 선택한다"를 1차 동선으로 한다. 앱의 중심 은유는 **"날짜 위에 메모가 얹힌다"**이며, 평면적 목록은 보조 수단일 뿐이다. 날짜를 탭하면 그날의 항목이 펼쳐지고, 그 자리에서 바로 추가·삭제한다. 단, 날짜 없는(`date`/`dueDate`가 null인) 메모도 허용하되 기본 작성 흐름은 항상 특정 날짜에서 출발한다. **표현은 적응형이다 — 창 너비(`WindowSizeClass`)로 분기**: Compact(폰·폴드 접힘)는 주 단위 세로 아젠다(날짜마다 메모 미리보기), Medium·Expanded(태블릿·폴드 펼침·PC)는 월 달력 칸 안에 메모 미리보기. **기기 종류가 아니라 창 너비**로 판단해 폴드 접고 펼 때 자연 전환되게 한다.
+6. **코드는 멀티플랫폼 공유를 기본으로 한다 (Android + 데스크톱).** Compose Multiplatform로 `commonMain`에 **domain·data(Repository)·Room(KMP)·ViewModel·Compose UI**를 두고, Android와 Windows/macOS/Linux 데스크톱이 같은 코드를 공유한다. 플랫폼 의존(폴드·S펜·공유·OAuth)만 `expect/actual` 뒤로 격리한다. 이 결정의 직접 귀결: **DI는 Hilt가 아니라 Koin**(Hilt는 Android 전용), **DB는 Room KMP + `BundledSQLiteDriver`**, **네트워크는 Ktor**(멀티플랫폼). 원칙 4(Repository 추상화)가 이 공유를 떠받친다.
 
 ---
 
@@ -53,26 +55,27 @@
 
 | 영역 | 기술 | 메모 |
 |---|---|---|
-| 언어 | Kotlin (최신 안정 버전) | — |
-| UI | Jetpack Compose + Material 3 (Compose BOM) | 선언형, 적응형 레이아웃 내장 |
-| 화면 전환 | Jetpack Navigation Compose | 캘린더(홈)·노트·투두·검색·AI·설정 라우팅 |
-| 적응형 분기 | `WindowSizeClass` (`material3-adaptive`) | **창 너비로 분기** — Compact=주 아젠다 / Medium·Expanded=월 달력 |
+| 언어 | **Kotlin Multiplatform** (최신 안정 버전) | `commonMain` 공유 + `androidMain`/`desktopMain` |
+| 플랫폼 | Android (갤럭시 탭·폴드) + 데스크톱 JVM (Windows·macOS·Linux) | Compose Multiplatform |
+| UI | **Compose Multiplatform** + Material 3 | 선언형, 적응형 레이아웃 내장 · `commonMain` 공유 |
+| 화면 전환 | Navigation Compose (Multiplatform) | 미지원/불안정 시 Voyager·Decompose 대안. Phase 1 라우팅 시 확정 |
+| 적응형 분기 | `WindowSizeClass` (`material3-adaptive`) | **창 너비로 분기** — Compact=주 아젠다 / Medium·Expanded=월 달력 (데스크톱은 항상 넓은 창) |
 | 대화면 | Compose Adaptive (`material3-adaptive`) | 월 달력 칸 내 메모 미리보기 + 마스터-디테일 2단 |
-| 폴더블 | Jetpack WindowManager (`androidx.window`) | 접힘·플렉스·힌지 감지 (접힘=Compact) |
-| 로컬 DB | Room (SQLite) | 오프라인 우선 저장소 · 진실의 원천 |
-| 검색 | Room FTS4/FTS5 | 메모 전문 검색 (Phase 1~2) |
-| 설정 저장 | DataStore (Preferences) | 테마·동기화 토글 등 키-값 환경설정 |
-| 에디터 | 마크다운 — **편집은 `BasicTextField`, 렌더링은 라이브러리** | ⚠️ 블록 에디터 금지 · Markwon은 View 기반 **렌더 전용**(편집 불가), AndroidView interop 또는 Compose 마크다운 라이브러리 사용 |
-| 캘린더 UI | Kizitonwose Calendar Compose | 성숙한 오픈소스 |
-| 구글 캘린더 | Google Calendar API + Credential Manager | OAuth 표준 (Phase 3) |
-| AI (1단계) | Android Sharesheet (Intent) | **ChatGPT 앱**으로 메모 텍스트 푸쉬 (단일) |
-| AI (2단계) | Ktor 또는 Retrofit | **OpenAI REST API 단일** · `AiRepository`로 추상화(구현체 1개) |
-| S펜 필기 | ML Kit Digital Ink (변환 시) | 단순 잉크는 Compose Canvas |
-| 아키텍처 | MVVM + Repository | ViewModel · Coroutines · Flow |
-| DI | Hilt | 의존성 주입 |
-| 빌드 | Android Studio + Gradle (Kotlin DSL) | — |
+| 폴더블 | Jetpack WindowManager (`androidx.window`) | **Android 전용 → `expect/actual`로 격리.** 접힘·플렉스·힌지 감지 (접힘=Compact). 데스크톱은 창 리사이즈로 대체 |
+| 로컬 DB | **Room KMP** + `BundledSQLiteDriver` (`androidx.sqlite`) | 오프라인 우선 · 진실의 원천 · `commonMain` 공유 |
+| 검색 | Room FTS4 | 메모 전문 검색 (Phase 1~2) · ⚠️Room KMP에서 `@Fts4` 동작은 Phase 0.5-B에서 빌드 검증 |
+| 설정 저장 | DataStore (`datastore-preferences-core`, KMP) | 테마·동기화 토글 등 키-값 환경설정 |
+| 에디터 | 마크다운 — **편집은 `BasicTextField`, 렌더링은 라이브러리** | ⚠️ 블록 에디터 금지 · **Markwon(Android View)은 멀티플랫폼 불가** → CMP 호환 마크다운 렌더러 선정 |
+| 캘린더 UI | Kizitonwose Calendar | ⚠️CMP 지원 아티팩트 사용 여부 Phase 2 진입 시 확정(미지원이면 공용 컴포저블 대체) |
+| 구글 캘린더 | Google Calendar API + Credential Manager | **Android 전용 → `expect/actual`.** OAuth 표준 (Phase 3) |
+| AI (1단계) | Android Sharesheet (Intent) | **Android 전용 → `expect/actual`.** ChatGPT 앱으로 메모 텍스트 푸쉬 (단일). 데스크톱은 클립보드/링크 대체 |
+| AI (2단계) | **Ktor** (멀티플랫폼) | **OpenAI REST API 단일** · `AiRepository`로 추상화(구현체 1개). (Retrofit은 Android 전용이라 제외) |
+| S펜 필기 | ML Kit Digital Ink (변환 시) | **Android 전용 → `expect/actual`.** 단순 잉크는 Compose Canvas(공유 가능) |
+| 아키텍처 | MVVM + Repository | ViewModel(`lifecycle-viewmodel` KMP) · Coroutines · Flow · `commonMain` 공유 |
+| DI | **Koin** | 멀티플랫폼 DI. (Hilt는 Android 전용이라 제외) |
+| 빌드 | Gradle (Kotlin DSL) + Compose Multiplatform 플러그인 | Android: `assembleDebug` / 데스크톱: `:run`·`packageDistributionForCurrentOS` |
 
-> 버전은 Claude Code가 빌드 시점의 최신 안정 버전을 사용하되, Compose는 BOM으로 버전을 묶어 관리한다.
+> 버전은 Claude Code가 빌드 시점의 최신 안정 버전을 사용한다. Kotlin·Compose Multiplatform·Room KMP는 **상호 호환 버전**으로 묶어 관리한다(예: Kotlin ↔ CMP 플러그인 호환 매트릭스 준수).
 
 ---
 
@@ -93,7 +96,7 @@ Data (Repository)┘  로컬 우선, 동기화는 별도 레인
 
 ### 제안 패키지 구조
 ```
-com.<owner>.galaxymemo/
+com.kangtaeyoung.daynote/
 ├── data/
 │   ├── local/          # Room: entities, daos, AppDatabase, Converters
 │   ├── remote/         # (Phase 3~6) Calendar API, AI API, Sync
@@ -207,10 +210,20 @@ PowerSync·Turso는 기술적으로 가장 우아하나 개인 메모 앱엔 인
 
 > 기간은 본업 병행(주당 약 8~12시간) 기준 대략치. Kotlin/Compose 숙련도에 따라 변동.
 
-### Phase 0 — 환경 구축 & 프로젝트 골격
+### Phase 0 — 환경 구축 & 프로젝트 골격 ✅
 - **Claude Code 작업**: Android 프로젝트 생성, Gradle(Kotlin DSL) 설정, Compose·Hilt·Room 의존성 추가, 위 패키지 구조 골격 생성, 빈 화면이 빌드·실행되게.
 - **완료 기준**: `./gradlew assembleDebug` 성공, 실제 갤럭시 기기에서 빈 앱 실행 확인.
 - **난이도**: 중 / **예상**: 2~4주(학습 포함)
+- _결과: Android 단일 타깃 골격 완료(Hilt/Room). 이후 PC를 1급 타깃으로 결정 → Phase 0.5에서 멀티플랫폼으로 전환._
+
+### Phase 0.5 — Compose Multiplatform 전환 (PC 1급 타깃)
+> PC(데스크톱)를 정식 타깃으로 올린 결정(설계원칙 6)에 따라, 코드 자산이 가장 적은 지금 멀티플랫폼 구조로 전환한다. 더 진행할수록 마이그레이션 비용이 커지므로 Phase 1 본격화 직전에 처리한다.
+- **A. 멀티모듈 구조 + 데스크톱 타깃**: `composeApp`(또는 `shared`) 모듈을 `commonMain`/`androidMain`/`desktopMain`으로 구성, Compose Multiplatform 플러그인 적용, 데스크톱 JVM 타깃·실행(`:run`) 추가. **빈 앱이 Android·데스크톱 양쪽에서 실행**되게.
+- **B. Room KMP 이전**: Phase 1-Step1/2에서 만든 엔티티·DAO·`AppDatabase`를 `commonMain`으로 옮기고 `BundledSQLiteDriver` 기반으로 전환. **`@Fts4` 동작을 양쪽 빌드로 검증.**
+- **C. Hilt → Koin**: DI를 Koin으로 교체(현재 그래프가 비어 있어 비용 최소). `@HiltAndroidApp`/`@AndroidEntryPoint`/`hiltViewModel` 제거.
+- **완료 기준**: 빈 앱이 Android(`assembleDebug`)와 데스크톱(`:run`) 양쪽에서 빌드·실행. Room DB가 양쪽에서 동작.
+- **난이도**: 중~상 / **예상**: 1~2주
+- **주의**: Kotlin ↔ Compose Multiplatform ↔ Room KMP **버전 호환 매트릭스**를 먼저 맞춘다. 각 하위 단계(A/B/C)마다 양쪽 빌드 확인.
 
 ### Phase 1 — 로컬 MVP (메모 + 할 일)
 - **Claude Code 작업**: Room 스키마(Note/Task + FTS) 구현, DAO·Repository·UseCase, 메모 CRUD, **마크다운 편집(`BasicTextField`)·렌더링(라이브러리) 분리 구현**, 체크리스트형 할 일, 메모 전문 검색, Navigation Compose 라우팅, 목록·상세 화면, MVVM 골격.
@@ -218,6 +231,7 @@ PowerSync·Turso는 기술적으로 가장 우아하나 개인 메모 앱엔 인
 - **난이도**: 중 / **예상**: 3~5주
 - **주의**: 에디터를 단순하게 유지(마크다운). 이 단계에서 블록 에디터 욕심 금지.
 - **참고**: 이 단계의 목록 화면은 임시 골격이다. **기본 진입점은 Phase 2에서 캘린더로 승격**되므로, 화면 구조를 Navigation으로 느슨하게 잡아 진입점 교체가 쉽게 만든다.
+- **멀티플랫폼 참고**: Phase 0.5 전환 이후이므로 이 단계의 data·domain·UI·ViewModel은 모두 `commonMain`에 작성한다 → Android·데스크톱 양쪽에서 자동 동작. 마크다운 렌더러는 CMP 호환 라이브러리를 쓴다(Markwon 불가).
 
 ### Phase 2 — 캘린더 통합 (기본 진입점 승격 · 적응형)
 - **Claude Code 작업**: Kizitonwose 캘린더를 **홈 화면(기본 진입점)으로 승격**, `Note.date`/`Task.dueDate` 연결, 날짜 선택 → 그날의 메모·할 일 **조회 + 그 자리에서 추가·삭제**(추가 시 선택 날짜를 `date`/`dueDate`에 자동 주입), 날짜 없는 메모용 보조 목록, 마감일 정렬. **적응형 표현은 `WindowSizeClass`로 분기** — Compact(폰·폴드 접힘)=주 단위 세로 아젠다(날짜마다 메모 미리보기), Medium·Expanded(태블릿·폴드 펼침·PC)=월 달력(칸 안에 메모 미리보기, 넘치면 "+N개 더"). 두 뷰는 **같은 선택 날짜 상태를 공유**한다.
@@ -240,7 +254,7 @@ PowerSync·Turso는 기술적으로 가장 우아하나 개인 메모 앱엔 인
 
 #### 참고 코드 — 4-B 데이터 계층 골격 (OpenAI 단일)
 
-> 실제 구현 시 조정 가능. 핵심은 **UI·도메인이 `AiRepository`만 보고**, OpenAI 호출·파싱·저장은 구현체 한 곳에 가둔다는 것. 패키지는 `com.<owner>.galaxymemo`. REST는 Retrofit + kotlinx.serialization 기준(필요 의존성: `retrofit`, `retrofit2-kotlinx-serialization-converter`, `kotlinx-serialization-json`, `androidx.security:security-crypto`).
+> 실제 구현 시 조정 가능. 핵심은 **UI·도메인이 `AiRepository`만 보고**, OpenAI 호출·파싱·저장은 구현체 한 곳에 가둔다는 것. 패키지는 `com.kangtaeyoung.daynote`. REST는 Retrofit + kotlinx.serialization 기준(필요 의존성: `retrofit`, `retrofit2-kotlinx-serialization-converter`, `kotlinx-serialization-json`, `androidx.security:security-crypto`).
 
 ```kotlin
 // domain/model — AI 동작은 프롬프트 템플릿을 함께 들고 있다

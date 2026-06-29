@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "GalaxyMemo"
+rootProject.name = "DayNote"
 include(":app")

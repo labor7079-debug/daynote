@@ -20,10 +20,10 @@
   ```
   → `BUILD SUCCESSFUL` 이면 Phase 0의 빌드 기준 충족.
 - **실기기 실행**: 갤럭시 탭/폴드를 USB로 연결(개발자 옵션 → USB 디버깅) →
-  Android Studio ▶ Run → "갤럭시 메모" 빈 화면에 *"Phase 0 — 빈 화면이 빌드되었습니다"* 표시되면 완료.
+  Android Studio ▶ Run → "DayNote" 빈 화면에 *"Phase 0 — 빈 화면이 빌드되었습니다"* 표시되면 완료.
 
 ## 참고
-- 패키지/applicationId: `com.eastarjet.galaxymemo`
+- 패키지/applicationId: `com.kangtaeyoung.daynote`
 - minSdk 26 / compileSdk·targetSdk 35
 - 빈 패키지에는 `.gitkeep`만 있고 Phase 1부터 채웁니다.
 - Sync 중 버전 경고가 나오면 Android Studio가 최신 안정 버전을 제안합니다 — 그대로 반영해도 됩니다.
