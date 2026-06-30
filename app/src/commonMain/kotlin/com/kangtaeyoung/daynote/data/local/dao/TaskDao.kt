@@ -78,4 +78,33 @@ interface TaskDao {
         """,
     )
     fun observeUndated(): Flow<List<TaskEntity>>
+
+    /**
+     * 메모에 속하지 않은(독립) 모든 할 일 — 마감일 유무와 무관.
+     * To-Do 탭의 마스터 목록(캘린더에서 날짜를 지정해 만든 할 일도 여기 포함된다).
+     */
+    @Query(
+        """
+        SELECT * FROM tasks
+        WHERE noteId IS NULL AND deletedAt IS NULL
+        ORDER BY isDone ASC, dueDate IS NULL, dueDate ASC, sortOrder ASC, createdAt ASC
+        """,
+    )
+    fun observeStandalone(): Flow<List<TaskEntity>>
+
+    // --- 동기화(Phase 3) ---
+
+    /** 캘린더로 내보낼 할 일: 마감일 있음 · 활성 · 아직 SYNCED 아님. */
+    @Query("SELECT * FROM tasks WHERE dueDate IS NOT NULL AND deletedAt IS NULL AND syncStatus != 'SYNCED'")
+    suspend fun getTasksToPush(): List<TaskEntity>
+
+    /** 원격 이벤트를 지워야 할 할 일: 소프트 삭제됐고 remoteId 가 남아 있음. */
+    @Query("SELECT * FROM tasks WHERE deletedAt IS NOT NULL AND remoteId IS NOT NULL")
+    suspend fun getDeletedTasksWithRemote(): List<TaskEntity>
+
+    @Query("UPDATE tasks SET remoteId = :remoteId, syncStatus = 'SYNCED' WHERE id = :id")
+    suspend fun markSynced(id: String, remoteId: String)
+
+    @Query("UPDATE tasks SET remoteId = NULL, syncStatus = 'SYNCED' WHERE id = :id")
+    suspend fun clearRemote(id: String)
 }

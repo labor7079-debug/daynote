@@ -1,5 +1,6 @@
 package com.kangtaeyoung.daynote.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -21,6 +22,8 @@ data class TaskEntity(
     val text: String,
     val isDone: Boolean = false,
     val dueDate: Long? = null, // 캘린더 연결용 (epoch millis, nullable)
+    // 마이그레이션(ALTER TABLE … DEFAULT 1)과 신규 생성 스키마를 일치시키려 SQL 기본값을 명시한다.
+    @ColumnInfo(defaultValue = "1") val allDay: Boolean = true, // 종일(true)/특정 시각(false)
     val sortOrder: Int = 0,
     val createdAt: Long,
     val updatedAt: Long,

@@ -78,6 +78,24 @@ interface NoteDao {
     )
     fun observeUndated(): Flow<List<NoteEntity>>
 
+    // --- 동기화(Phase 3) ---
+
+    /** 캘린더로 내보낼 메모: 날짜 있음 · 활성 · 아직 SYNCED 아님(신규/수정). */
+    @Query("SELECT * FROM notes WHERE date IS NOT NULL AND deletedAt IS NULL AND syncStatus != 'SYNCED'")
+    suspend fun getNotesToPush(): List<NoteEntity>
+
+    /** 원격 이벤트를 지워야 할 메모: 소프트 삭제됐고 remoteId 가 남아 있음. */
+    @Query("SELECT * FROM notes WHERE deletedAt IS NOT NULL AND remoteId IS NOT NULL")
+    suspend fun getDeletedNotesWithRemote(): List<NoteEntity>
+
+    /** 원격 이벤트 연결 + 동기화 완료 표시. */
+    @Query("UPDATE notes SET remoteId = :remoteId, syncStatus = 'SYNCED' WHERE id = :id")
+    suspend fun markSynced(id: String, remoteId: String)
+
+    /** 원격 이벤트 삭제 반영(재삭제 방지로 remoteId 해제). */
+    @Query("UPDATE notes SET remoteId = NULL, syncStatus = 'SYNCED' WHERE id = :id")
+    suspend fun clearRemote(id: String)
+
     // --- 전문 검색 (FTS4) ---
 
     /**

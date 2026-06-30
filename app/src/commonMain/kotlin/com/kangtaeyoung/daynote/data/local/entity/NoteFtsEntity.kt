@@ -11,6 +11,8 @@ import androidx.room.Fts4
  * 컬럼명([title]/[content])은 [NoteEntity] 와 일치해야 하며, rowid 로 원본과 연결된다.
  *
  * 검색 예: `SELECT * FROM notes WHERE rowid IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH :query)`
+ *
+ * ⚠️ Room KMP 에서 `@Fts4` 동작은 공식 보증이 없어, 데스크톱 JVM 스모크 테스트(FtsSmokeTest)로 검증한다.
  */
 @Fts4(contentEntity = NoteEntity::class)
 @Entity(tableName = "notes_fts")
