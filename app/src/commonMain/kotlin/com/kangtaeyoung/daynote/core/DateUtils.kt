@@ -74,6 +74,14 @@ fun LocalDate.isoWeekNumber(): Int {
     return (thursday.dayOfYear - 1) / 7 + 1
 }
 
+/** epoch millis → "M월 D일 HH:mm" 라벨. (AI 결과 이력 등 타임스탬프 표시용) */
+fun Long.toShortDateTimeLabel(tz: TimeZone = appTimeZone): String {
+    val t = Instant.fromEpochMilliseconds(this).toLocalDateTime(tz)
+    val hh = t.hour.toString().padStart(2, '0')
+    val mm = t.minute.toString().padStart(2, '0')
+    return "${t.monthNumber}월 ${t.dayOfMonth}일 $hh:$mm"
+}
+
 /** 이 날짜가 속한 주의 시작(월요일). */
 fun LocalDate.startOfWeek(): LocalDate {
     val shift = dayOfWeek.isoDayNumber - 1 // 월=1 → 0

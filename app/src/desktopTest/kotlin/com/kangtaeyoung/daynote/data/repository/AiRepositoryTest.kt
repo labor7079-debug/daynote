@@ -62,6 +62,20 @@ class AiRepositoryTest {
     }
 
     @Test
+    fun deleteResult_removesOnlyThatRow() = runBlocking {
+        val repo = AiRepositoryImpl(api = OpenAiClient(), keys = FakeKeys(null), dao = db.aiResultDao())
+        val dao = db.aiResultDao()
+        dao.upsert(AiResultEntity("a", "note-1", "SUMMARIZE", "src", "keep", "m", createdAt = 100))
+        dao.upsert(AiResultEntity("b", "note-1", "EXPAND", "src", "gone", "m", createdAt = 200))
+
+        repo.deleteResult("b")
+
+        val remaining = repo.observeResults("note-1").first()
+        assertEquals(1, remaining.size)
+        assertEquals("keep", remaining[0].resultText)
+    }
+
+    @Test
     fun run_withoutApiKey_failsAndWritesNothing() = runBlocking {
         val repo = AiRepositoryImpl(
             api = OpenAiClient(),

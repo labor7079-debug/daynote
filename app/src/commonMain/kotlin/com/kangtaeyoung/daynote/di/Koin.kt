@@ -20,6 +20,7 @@ import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
 import com.kangtaeyoung.daynote.data.sync.SupabaseCloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.supabase.SupabaseSyncClient
 import com.kangtaeyoung.daynote.domain.usecase.AskAiUseCase
+import com.kangtaeyoung.daynote.domain.usecase.DeleteAiResultUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveAiResultsUseCase
 import com.kangtaeyoung.daynote.domain.usecase.RunAiActionUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SuggestTitleUseCase
@@ -113,6 +114,7 @@ val useCaseModule: Module = module {
     factory { AskAiUseCase(get()) }
     factory { SuggestTitleUseCase(get()) }
     factory { ObserveAiResultsUseCase(get()) }
+    factory { DeleteAiResultUseCase(get()) }
 }
 
 /** 앱 전체 모듈 묶음(플랫폼 모듈 제외 — 그건 initKoin 이 따로 붙인다). */

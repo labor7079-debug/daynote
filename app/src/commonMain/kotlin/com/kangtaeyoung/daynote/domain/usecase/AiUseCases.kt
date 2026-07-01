@@ -27,3 +27,8 @@ class SuggestTitleUseCase(private val repo: AiRepository) {
 class ObserveAiResultsUseCase(private val repo: AiRepository) {
     operator fun invoke(noteId: String): Flow<List<AiResult>> = repo.observeResults(noteId)
 }
+
+/** 이력 항목 1건 삭제(사용자가 지운 AI 결과). */
+class DeleteAiResultUseCase(private val repo: AiRepository) {
+    suspend operator fun invoke(id: String) = repo.deleteResult(id)
+}
