@@ -77,6 +77,8 @@ val repositoryModule: Module = module {
     single<CloudSyncManager> { SupabaseCloudSyncManager(get(), get(), get(), get(), get()) }
     // 자동 동기화 조율(앱 시작 + 변경 디바운스) — App() 에서 start.
     single { AutoSyncCoordinator(get(), get(), get()) }
+    // 할 일 알림 조율(앱 시작 + 변경 디바운스로 재예약). TaskReminderScheduler 는 platformModule 제공.
+    single { com.kangtaeyoung.daynote.notification.ReminderCoordinator(get(), get(), get(), get()) }
 }
 
 /** UseCase 계층. 상태 없는 얇은 래퍼라 factory 로 등록한다. */

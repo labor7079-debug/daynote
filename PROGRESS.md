@@ -26,7 +26,15 @@
 ### 🐞 기기 피드백 — 하단바 보라색 + 설정 아이콘 (2026-07-01)
 - **하단바가 라벤더로 튐(근본 원인)**: `lightColorScheme`에 **톤 서피스 계열(`surfaceContainer*`/`surfaceBright`/`surfaceDim`) 미지정** → M3 기본 라벤더가 새어 `NavigationBar` 기본 배경(=surfaceContainer)이 보라로 떴음. **웜 톤으로 전 롤 명시**(Color.kt/Theme.kt, 라이트+다크) → 근본 차단(메뉴·드롭다운 등 다른 곳의 보라 누수도 함께 방지). **추가로** `DayNoteBottomBar`를 **투명 컨테이너 + 옅은 상단 헤어라인**으로 바꿔 앱 바탕(Paper)에 녹임(튀지 않음). 선택 표시는 웜 secondaryContainer.
 - **우측 상단 Settings 텍스트 → 톱니바퀴**: material-icons 의존성 없음 → **`SettingsGearIcon` ImageVector 직접 정의**(`ui/theme/AppIcons.kt`, PathParser로 표준 gear 경로, 새 의존성 0). `CalendarScreen` 상단바 `IconButton`.
-- 자산: `ui/theme/{Color,Theme,AppIcons}.kt`·`ui/components/DayNoteBottomBar.kt`·`ui/calendar/CalendarScreen.kt`. **assembleDebug + compileKotlinDesktop + desktopTest(22건) 모두 BUILD SUCCESSFUL.** ⚠️ 기기에서 하단바 색·톱니 아이콘 실제 확인 권장.
+- 자산: `ui/theme/{Color,Theme,AppIcons}.kt`·`ui/components/DayNoteBottomBar.kt`·`ui/calendar/CalendarScreen.kt`. **assembleDebug + compileKotlinDesktop + desktopTest(22건) 모두 BUILD SUCCESSFUL.** ✅ 기기 확인됨(하단바 웜톤·톱니 아이콘).
+
+### 🧰 개인용 안정성 기능 (2026-07-01, 수석 검토 후 P0)
+> 개인용 "매일 안 깨지고 데이터 안 날아감" 목적 검토 결과 P0 2건 구현.
+
+- ✅ **A. 로컬 백업/복원**(내보내기·가져오기): 메모·할 일 전체를 **JSON 파일로 저장/복원**(클라우드 없이 데이터 안전망). `data/backup/{BackupModels,BackupManager}`(DAO 직접, format 필수 필드로 잘못된 파일 거부, id upsert 라 중복 없음), `NoteDao/TaskDao.getAllRaw`, `ui/settings/BackupIO` expect/actual(Android=SAF, Desktop=AWT FileDialog), 설정 "백업/복원" 섹션. 테스트 +2. 커밋 `8361db5`.
+- ✅ **B. 할 일 마감 리마인더**(알림): **시간 지정 할 일**의 마감 시각에 알림. 종일 할 일은 알림 없음(v1). `notification/{TaskReminderScheduler(expect via platformModule),ReminderCoordinator}`(앱 시작+변경 디바운스로 재예약, 발화 시점 재검증), Android=`AlarmManager`+`ReminderReceiver`(완료·삭제 필터)+`BootReceiver`(재부팅 재예약), Desktop=no-op. `TaskDao.getTimedUpcoming`, 설정 "할 일 마감 알림" 토글(기본 켜짐). 매니페스트 권한 `POST_NOTIFICATIONS`/`USE_EXACT_ALARM`/`RECEIVE_BOOT_COMPLETED` + 리시버 2개, MainActivity 알림권한 요청(13+). 테스트 +1(getTimedUpcoming 의미). **assembleDebug + compileKotlinDesktop + desktopTest(25건) 모두 BUILD SUCCESSFUL.**
+  - ⚠️ **기기 검증 권장**: 시간 지정 할 일 만들고 마감 시각에 알림 오는지 1회. ⚠️ **Play**: `USE_EXACT_ALARM`은 캘린더/알람 앱에 허용되나, 데이터 보안/권한 선언에서 "정시 알림(캘린더)" 사유 필요할 수 있음.
+  - 후속(P1): 종일 할 일 기본시각 알림, 반복 일정, 홈 위젯, 구글 캘린더 pull/무음 재로그인.
 
 - **이번 세션 요약(2026-07-01)**: 자동 동기화·테마/다크모드·「Quiet Cadence」 팔레트/디자인 자산·Phase 5-A(2단)·5-C1/2(S펜 필기 캔버스) 완료 후, **갤럭시탭·폴드7 기기 피드백 1차 수정** → **개발자 실기기 재검증 전부 정상 확인**.
 - **기기 확인됨**: 테마 전환/유지 ✓, 색감 ✓, 수동 동기화 ✓, Phase 4(공유·요약/확장/교정) ✓, 구글캘린더 생성 ✓.

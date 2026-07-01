@@ -63,6 +63,7 @@ fun SettingsScreen(
     val supabaseConfig by vm.supabaseConfig.collectAsState()
     val themeMode by vm.themeMode.collectAsState()
     val autoTitle by vm.autoTitle.collectAsState()
+    val remindersEnabled by vm.remindersEnabled.collectAsState()
     val backupMsg by vm.backupMsg.collectAsState()
     val startGoogleSignIn = rememberGoogleCalendarSignIn()
     val backupControls = rememberBackupControls(onImported = vm::importBackup, onResult = vm::setBackupMsg)
@@ -87,6 +88,23 @@ fun SettingsScreen(
             ThemeSection(
                 mode = themeMode,
                 onSelect = vm::setThemeMode,
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // 할 일 마감 알림 토글(시간 지정 할 일의 마감 시각에 알림).
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("할 일 마감 알림", style = MaterialTheme.typography.bodyLarge)
+                Switch(checked = remindersEnabled, onCheckedChange = vm::setRemindersEnabled)
+            }
+            Text(
+                "시간을 지정한 할 일의 마감 시각에 알림을 보냅니다. (종일 할 일은 알림 없음)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

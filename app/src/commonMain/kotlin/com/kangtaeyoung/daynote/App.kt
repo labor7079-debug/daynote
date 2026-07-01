@@ -25,6 +25,10 @@ fun App() {
     val autoSync = koinInject<AutoSyncCoordinator>()
     LaunchedEffect(Unit) { autoSync.start(this) }
 
+    // 할 일 알림 재예약(앱 시작 + 로컬 변경). Android=AlarmManager, Desktop=no-op.
+    val reminders = koinInject<com.kangtaeyoung.daynote.notification.ReminderCoordinator>()
+    LaunchedEffect(Unit) { reminders.start(this) }
+
     // 화면 테마(영속): SYSTEM=기기 설정, LIGHT/DARK=강제.
     val settings = koinInject<SettingsRepository>()
     val themeMode by settings.observeThemeMode().collectAsState(ThemeMode.SYSTEM)

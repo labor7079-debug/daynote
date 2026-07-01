@@ -22,6 +22,11 @@ interface SettingsRepository {
     suspend fun isAutoTitleEnabled(): Boolean
     suspend fun setAutoTitle(enabled: Boolean)
 
+    // 할 일 마감 알림 토글 — 기본 켜짐
+    fun observeRemindersEnabled(): Flow<Boolean>
+    suspend fun isRemindersEnabled(): Boolean
+    suspend fun setRemindersEnabled(enabled: Boolean)
+
     // 클라우드(Supabase) 동기화 토글 + 접속 설정(Phase 6)
     fun observeCloudSyncEnabled(): Flow<Boolean>
     suspend fun isCloudSyncEnabled(): Boolean
@@ -64,6 +69,17 @@ class SettingsRepositoryImpl(
         dao.put(AppSettingEntity(KEY_AUTO_TITLE, enabled.toString()))
     }
 
+    // 기본 켜짐: 값이 없으면(=미설정) true, 명시적으로 "false" 일 때만 끔.
+    override fun observeRemindersEnabled(): Flow<Boolean> =
+        dao.observe(KEY_REMINDERS).map { it != "false" }
+
+    override suspend fun isRemindersEnabled(): Boolean =
+        dao.get(KEY_REMINDERS) != "false"
+
+    override suspend fun setRemindersEnabled(enabled: Boolean) {
+        dao.put(AppSettingEntity(KEY_REMINDERS, enabled.toString()))
+    }
+
     override fun observeCloudSyncEnabled(): Flow<Boolean> =
         dao.observe(KEY_CLOUD_SYNC_ENABLED).map { it == "true" }
 
@@ -99,6 +115,7 @@ class SettingsRepositoryImpl(
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_SYNC_ENABLED = "sync_enabled"
         const val KEY_AUTO_TITLE = "auto_title"
+        const val KEY_REMINDERS = "reminders_enabled"
         const val KEY_CLOUD_SYNC_ENABLED = "cloud_sync_enabled"
         const val KEY_SUPABASE_URL = "supabase_url"
         const val KEY_SUPABASE_ANON_KEY = "supabase_anon_key"

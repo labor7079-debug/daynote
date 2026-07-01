@@ -123,6 +123,14 @@ class SettingsViewModel(
         viewModelScope.launch { settings.setAutoTitle(enabled) }
     }
 
+    // --- 할 일 마감 알림 토글(기본 켜짐) ---
+    val remindersEnabled: StateFlow<Boolean> = settings.observeRemindersEnabled()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setRemindersEnabled(enabled: Boolean) {
+        viewModelScope.launch { settings.setRemindersEnabled(enabled) }
+    }
+
     fun setSyncEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settings.setSyncEnabled(enabled)
