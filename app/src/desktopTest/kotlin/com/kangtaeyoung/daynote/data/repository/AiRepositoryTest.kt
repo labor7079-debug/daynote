@@ -74,4 +74,24 @@ class AiRepositoryTest {
         assertTrue(result.isFailure, "키가 없으면 실패해야 한다")
         assertEquals(0, db.aiResultDao().observeForNote("note-1").first().size)
     }
+
+    @Test
+    fun suggestTitle_withoutApiKey_failsSafely() = runBlocking {
+        // 키가 없으면 네트워크 호출 전 실패해야 한다(상위에서 "본문 첫 줄" 폴백으로 처리).
+        val repo = AiRepositoryImpl(api = OpenAiClient(), keys = FakeKeys(null), dao = db.aiResultDao())
+
+        val result = repo.suggestTitle("오늘 회의 준비: 슬라이드 3장, 예산 검토")
+
+        assertTrue(result.isFailure, "키가 없으면 제목 생성은 실패해야 한다")
+    }
+
+    @Test
+    fun suggestTitle_blankSource_failsSafely() = runBlocking {
+        // 키가 있어도 내용이 비면 실패(불필요한 호출 방지).
+        val repo = AiRepositoryImpl(api = OpenAiClient(), keys = FakeKeys("sk-test"), dao = db.aiResultDao())
+
+        val result = repo.suggestTitle("   ")
+
+        assertTrue(result.isFailure, "빈 내용이면 실패해야 한다")
+    }
 }

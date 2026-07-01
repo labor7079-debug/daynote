@@ -61,6 +61,7 @@ fun SettingsScreen(
     val cloudBusy by vm.cloudBusy.collectAsState()
     val supabaseConfig by vm.supabaseConfig.collectAsState()
     val themeMode by vm.themeMode.collectAsState()
+    val autoTitle by vm.autoTitle.collectAsState()
     val startGoogleSignIn = rememberGoogleCalendarSignIn()
 
     Scaffold(
@@ -151,6 +152,8 @@ fun SettingsScreen(
                 hasKey = hasApiKey,
                 onSave = vm::saveApiKey,
                 onClear = vm::clearApiKey,
+                autoTitle = autoTitle,
+                onAutoTitleChange = vm::setAutoTitle,
             )
         }
     }
@@ -300,12 +303,14 @@ private fun CloudSyncState.describe(): String = when (this) {
     is CloudSyncState.Error -> "오류: $message"
 }
 
-/** OpenAI API 키 입력/삭제(Phase 4-B). 저장된 키 원문은 노출하지 않는다(보안). */
+/** OpenAI API 키 입력/삭제(Phase 4-B) + 제목 자동생성 토글. 저장된 키 원문은 노출하지 않는다(보안). */
 @Composable
 private fun ApiKeySection(
     hasKey: Boolean,
     onSave: (String) -> Unit,
     onClear: () -> Unit,
+    autoTitle: Boolean,
+    onAutoTitleChange: (Boolean) -> Unit,
 ) {
     var keyInput by remember { mutableStateOf("") }
 
@@ -340,6 +345,21 @@ private fun ApiKeySection(
         ) { Text("저장") }
         OutlinedButton(onClick = onClear, enabled = hasKey) { Text("삭제") }
     }
+
+    // 제목 자동생성 — 저장 시 제목이 비어 있으면 AI(또는 본문 첫 줄)로 자동 채움.
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("제목 자동생성", style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = autoTitle, onCheckedChange = onAutoTitleChange)
+    }
+    Text(
+        "켜면 제목 없이 저장할 때 본문을 근거로 제목을 자동 생성합니다. 키가 없으면 본문 첫 줄을 씁니다. (에디터의 ‘✨ 제목’ 버튼은 토글과 무관하게 항상 사용 가능)",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 private fun SyncState.describe(): String = when (this) {

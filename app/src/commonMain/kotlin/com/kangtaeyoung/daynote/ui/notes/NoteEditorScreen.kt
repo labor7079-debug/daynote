@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
@@ -35,7 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kangtaeyoung.daynote.ui.ai.AiPanel
 import com.kangtaeyoung.daynote.ui.ai.rememberAiShare
@@ -44,8 +49,10 @@ import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
+import com.kangtaeyoung.daynote.data.repository.SettingsRepository
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteTasksUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteUseCase
+import com.kangtaeyoung.daynote.domain.usecase.SuggestTitleUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
 import com.kangtaeyoung.daynote.ui.components.MarkdownText
@@ -68,6 +75,8 @@ fun NoteEditorScreen(
     val addTask = koinInject<AddTaskUseCase>()
     val toggleTask = koinInject<ToggleTaskUseCase>()
     val deleteTask = koinInject<DeleteTaskUseCase>()
+    val suggestTitle = koinInject<SuggestTitleUseCase>()
+    val settings = koinInject<SettingsRepository>()
 
     val vm = viewModel(key = "editor:${noteId ?: "new:$initialDate"}") {
         NoteEditorViewModel(
@@ -81,6 +90,8 @@ fun NoteEditorScreen(
             addTask = addTask,
             toggleTask = toggleTask,
             deleteTask = deleteTask,
+            suggestTitle = suggestTitle,
+            settings = settings,
         )
     }
     val tasks by vm.tasks.collectAsState()
@@ -95,7 +106,13 @@ fun NoteEditorScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (noteId == null) "새 메모" else "메모") },
+                title = {
+                    Text(
+                        if (noteId == null) "새 메모" else "메모",
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Medium,
+                    )
+                },
                 navigationIcon = {
                     TextButton(onClick = onBack) { Text("뒤로") }
                 },
@@ -147,6 +164,20 @@ fun NoteEditorScreen(
                 onValueChange = { vm.title = it },
                 label = { Text("제목") },
                 singleLine = true,
+                // 제목칸 옆 ✨ — 본문을 근거로 AI 제목 생성(키 없음/실패 시 본문 첫 줄 폴백).
+                trailingIcon = {
+                    if (vm.titleLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        TextButton(
+                            onClick = { vm.suggestTitleNow() },
+                            enabled = vm.content.isNotBlank(),
+                        ) { Text("✨ 제목") }
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -181,7 +212,12 @@ fun NoteEditorScreen(
 
             HorizontalDivider()
 
-            Text("할 일", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "TO-DO",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 2.sp,
+            )
             tasks.forEach { task ->
                 TaskRow(
                     task = task,

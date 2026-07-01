@@ -21,6 +21,13 @@ interface AiRepository {
     /** 자유 질문 — 메모([sourceText])를 맥락으로 [question] 에 답한다. 메모가 비면 순수 질문. */
     suspend fun ask(question: String, sourceText: String, noteId: String?): Result<AiResult>
 
+    /**
+     * 메모 내용([sourceText])에 어울리는 짧은 제목 한 줄을 생성한다. 결과는 필드 채우기용이라
+     * 이력(ai_results)에 저장하지 않는다. 키 미설정·빈 내용·호출 실패는 [Result] 실패로 반환
+     * (상위에서 "본문 첫 줄" 폴백으로 처리).
+     */
+    suspend fun suggestTitle(sourceText: String): Result<String>
+
     fun observeResults(noteId: String): Flow<List<AiResult>>
 }
 
@@ -89,8 +96,31 @@ class AiRepositoryImpl(
         ).also { dao.upsert(it.toEntity()) }
     }
 
+    override suspend fun suggestTitle(sourceText: String): Result<String> = runCatching {
+        val key = keys.openAiKey()?.takeIf { it.isNotBlank() }
+            ?: error("OpenAI API 키가 설정되지 않았습니다.")
+        if (sourceText.isBlank()) error("제목을 지을 내용이 없습니다.")
+
+        val raw = api.chat(
+            apiKey = key,
+            model = model,
+            system = AiAction.TITLE.systemPrompt,
+            user = "${AiAction.TITLE.instruction}\n\n$sourceText",
+            maxTokens = 32, // 제목은 짧다 — 비용 최소
+            temperature = 0.4,
+        )
+        cleanTitle(raw).ifBlank { error("빈 제목 응답") }
+    }
+
     override fun observeResults(noteId: String): Flow<List<AiResult>> =
         dao.observeForNote(noteId).map { list -> list.map { it.toDomain() } }
+
+    /** 모델이 따옴표·마침표·여러 줄로 답해도 한 줄 제목으로 정제한다. */
+    private fun cleanTitle(raw: String): String =
+        raw.lineSequence().map { it.trim() }.firstOrNull { it.isNotBlank() }.orEmpty()
+            .trim(' ', '\t', '"', '\'', '“', '”', '‘', '’', '「', '」', '`')
+            .trimEnd('.', '。', ' ')
+            .take(40)
 }
 
 private fun AiResult.toEntity(): AiResultEntity = AiResultEntity(

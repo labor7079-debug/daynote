@@ -12,8 +12,10 @@ import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
+import com.kangtaeyoung.daynote.data.repository.SettingsRepository
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteTasksUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteUseCase
+import com.kangtaeyoung.daynote.domain.usecase.SuggestTitleUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,10 +44,16 @@ class NoteEditorViewModel(
     private val addTask: AddTaskUseCase,
     private val toggleTask: ToggleTaskUseCase,
     private val deleteTask: DeleteTaskUseCase,
+    private val suggestTitle: SuggestTitleUseCase,
+    private val settings: SettingsRepository,
 ) : ViewModel() {
 
     var title by mutableStateOf("")
     var content by mutableStateOf("")
+        private set
+
+    /** AI 제목 생성 진행 중(버튼 스피너·중복 호출 방지). */
+    var titleLoading by mutableStateOf(false)
         private set
 
     private val idFlow = MutableStateFlow(initialNoteId)
@@ -82,8 +90,43 @@ class NoteEditorViewModel(
      */
     fun save() {
         if (idFlow.value == null && title.isBlank() && content.isBlank()) return
-        viewModelScope.launch { persist() }
+        viewModelScope.launch {
+            maybeAutoTitle()
+            persist()
+        }
     }
+
+    /**
+     * 제목칸 옆 ✨ 버튼 — AI 로 제목 생성. 실패(키 없음·오프라인·오류)하면 본문 첫 줄로 폴백한다.
+     * 이미 진행 중이거나 본문이 비면 아무것도 안 한다.
+     */
+    fun suggestTitleNow() {
+        if (titleLoading || content.isBlank()) return
+        titleLoading = true
+        viewModelScope.launch {
+            title = generateTitleOrFallback()
+            titleLoading = false
+        }
+    }
+
+    /** 저장 시 자동 제목: 토글 ON + 제목 비었고 본문 있을 때만. */
+    private suspend fun maybeAutoTitle() {
+        if (title.isNotBlank() || content.isBlank()) return
+        if (!settings.isAutoTitleEnabled()) return
+        title = generateTitleOrFallback()
+    }
+
+    /** AI 제목 생성 시도 → 실패 시 본문 첫 줄(마크다운 기호 제거). */
+    private suspend fun generateTitleOrFallback(): String =
+        suggestTitle(content).getOrElse { firstLineTitle(content) }
+
+    /** 본문 첫 비어있지 않은 줄을 제목으로. `#`·`-`·`*`·`>` 등 마크다운 앞머리 기호 제거, 40자 컷. */
+    private fun firstLineTitle(text: String): String =
+        text.lineSequence()
+            .map { it.trim().trimStart('#', '-', '*', '>', ' ', '\t').trim() }
+            .firstOrNull { it.isNotBlank() }
+            ?.take(40)
+            ?: ""
 
     /** 새 메모면 생성, 기존이면 갱신. 항상 메모를 보장한다(할 일 부모 확보용으로도 쓰임). */
     private suspend fun persist() {

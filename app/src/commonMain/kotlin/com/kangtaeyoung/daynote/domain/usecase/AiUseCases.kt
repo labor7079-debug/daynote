@@ -19,6 +19,11 @@ class AskAiUseCase(private val repo: AiRepository) {
         repo.ask(question, sourceText, noteId)
 }
 
+/** 메모 내용으로 짧은 제목을 생성한다(4-B). 실패 시 상위에서 "본문 첫 줄" 폴백. */
+class SuggestTitleUseCase(private val repo: AiRepository) {
+    suspend operator fun invoke(sourceText: String): Result<String> = repo.suggestTitle(sourceText)
+}
+
 class ObserveAiResultsUseCase(private val repo: AiRepository) {
     operator fun invoke(noteId: String): Flow<List<AiResult>> = repo.observeResults(noteId)
 }

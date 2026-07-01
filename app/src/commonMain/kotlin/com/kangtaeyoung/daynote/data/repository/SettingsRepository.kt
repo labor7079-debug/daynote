@@ -17,6 +17,11 @@ interface SettingsRepository {
     fun observeSyncEnabled(): Flow<Boolean>
     suspend fun setSyncEnabled(enabled: Boolean)
 
+    // AI 제목 자동생성 토글(저장 시 제목 비면 자동 생성) — 기본 꺼짐
+    fun observeAutoTitle(): Flow<Boolean>
+    suspend fun isAutoTitleEnabled(): Boolean
+    suspend fun setAutoTitle(enabled: Boolean)
+
     // 클라우드(Supabase) 동기화 토글 + 접속 설정(Phase 6)
     fun observeCloudSyncEnabled(): Flow<Boolean>
     suspend fun isCloudSyncEnabled(): Boolean
@@ -47,6 +52,16 @@ class SettingsRepositoryImpl(
 
     override suspend fun setSyncEnabled(enabled: Boolean) {
         dao.put(AppSettingEntity(KEY_SYNC_ENABLED, enabled.toString()))
+    }
+
+    override fun observeAutoTitle(): Flow<Boolean> =
+        dao.observe(KEY_AUTO_TITLE).map { it == "true" }
+
+    override suspend fun isAutoTitleEnabled(): Boolean =
+        dao.get(KEY_AUTO_TITLE) == "true"
+
+    override suspend fun setAutoTitle(enabled: Boolean) {
+        dao.put(AppSettingEntity(KEY_AUTO_TITLE, enabled.toString()))
     }
 
     override fun observeCloudSyncEnabled(): Flow<Boolean> =
@@ -83,6 +98,7 @@ class SettingsRepositoryImpl(
     private companion object {
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_SYNC_ENABLED = "sync_enabled"
+        const val KEY_AUTO_TITLE = "auto_title"
         const val KEY_CLOUD_SYNC_ENABLED = "cloud_sync_enabled"
         const val KEY_SUPABASE_URL = "supabase_url"
         const val KEY_SUPABASE_ANON_KEY = "supabase_anon_key"
