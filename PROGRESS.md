@@ -4,7 +4,11 @@
 >
 > _최종 업데이트: 2026-07-01_
 
-## 현재 위치: 기기 재검증 통과 ✅ + AI 제목 자동생성(4-C) + 「Warm Journal」 재설계(캘린더·상세·에디터) + 앱 아이콘「리본 저널」 코드 완료 → 다음: 배포(아이콘 실기기 확인·.exe 아이콘·스플래시·Play Console) 또는 하단탭 톤
+## 현재 위치: 기능·디자인·배포자산 준비 완료 → **개발자 계정 승인 대기 중**, 승인 나면 Play 업로드
+
+**오늘(2026-07-01) 한 것**: AI 제목 자동생성(4-C) · Warm Journal 재설계(캘린더·상세·에디터) · 리본 저널 앱 아이콘 · 하단바 보라 제거+톱니 아이콘 · **로컬 백업/복원** · **할 일 마감 리마인더** · 릴리스 서명 배선 + 서명 AAB · 3-OS CI · 배포 자산(개인정보방침·데이터보안·스토어문구·심사원안내·512아이콘·1024×500 피처그래픽) · GitHub Pages 공개 · **릴리스 키스토어 생성 + 릴리스 SHA-1 OAuth 등록**.
+
+**막힘 없음. 기다리는 것 = Play 개발자 계정 승인뿐.** 코드/자산은 제출 준비 끝(작업트리 clean, `b3ebb1e` 푸시됨).
 
 ### 🎨 캘린더 재설계 「Warm Journal」(방향 B) 적용 ✅ (2026-07-01)
 - **결정**: 두 제안(A 아틀라스 도판 / B 따뜻한 다이어리) 중 **방향 B 채택** — 부드러운 라운드 타일 + 밀도 점 + 제목 텍스트 유지. (사용자 확인: "제목 미리보기는 유지" → 점+글자 병행안으로 착수.)
@@ -296,19 +300,33 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # 번들 JDK 21
 
 ```
 PROGRESS.md 읽고 이어서 진행해줘.
-현재: Phase 1·2·3-B·4·5-A·5-C1/2·6 코드 완료 + 테마/다크·Quiet Cadence 디자인 완료.
-직전 세션에서 갤럭시탭/폴드7 기기 피드백 1차 수정(월달력 겹침·스와이프·빈칸탭·커서·AI자유질문).
-→ 먼저 개발자 재검증 결과를 물어봐줘: ①월 달력 7열 그리드(폴드 단일/탭 2단) ②에디터 커서 ③AI 자유질문
-  ④폰↔PC 자동 동기화 양방향 ⑤S펜 필압/뒤집기.  이상 없으면 다음 작업(아래) 중 택1.
-빌드: $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr" 로
-     :app:assembleDebug + :app:desktopTest (현재 테스트 20건).
-데스크톱 실행(GUI 확인): :app:run  (창 1180×780=2단 기본, 창 닫으면 종료).
-.exe: createDistributable "-Pdaynote.jpackage.jdk=<JDK25경로>" (실행 중인 DayNote.exe 먼저 종료).
-
-남은 작업(우선순위): (A)기기 재검증→커밋  (B)5-C3 ML Kit 텍스트변환/필기 영속화
-(C)AI 결과 이력 UI  (D)배포: 아이콘·스플래시·.exe 패키징·Play Console  (E)보류: 구글 pull·무음 재로그인.
+현재: 기능·디자인·배포자산 전부 준비 완료. 작업트리 clean, main 최신(b3ebb1e) 푸시됨.
+기다리는 것 = Play 개발자 계정 승인뿐. 승인 나면 아래 "Play 업로드 체크리스트"부터.
+빌드: $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
+  APK   : .\gradlew.bat :app:assembleDebug        (산출물 app\build\outputs\apk\debug\app-debug.apk)
+  AAB   : .\gradlew.bat :app:bundleRelease         (서명됨 — keystore.properties 있음, app-release.aab)
+  테스트 : .\gradlew.bat :app:desktopTest            (현재 25건)
+  데스크톱 GUI: :app:run  /  .exe·msi: createDistributable·packageMsi "-Pdaynote.jpackage.jdk=<JDK25>"
 ```
 
-### 확정된 우선순위 (2026-07-01)
-- **AI 검색/자료수집**: 드롭 — "메모검색으로 마무리"(기존 FTS로 충분). (다음 작업 4번 참조)
-- **순서**: ① 자동 동기화 ✅ → ② 폰 기기 검증(동기화·AI 한 번에, **개발자 실기기**) → ③ 테마/다크모드 ✅ → ④ Phase 5 → 배포.
+### ⏳ Play 업로드 체크리스트 (개발자 계정 승인 후 — 순서대로)
+1. **서명 AAB 빌드**: `:app:bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`.
+2. Play Console에서 앱 생성 → **AAB 업로드**(내부 테스트 트랙 권장).
+3. ⚠️ **Play 앱서명 SHA-1 등록**: 업로드 후 Play Console "앱 무결성 → 앱 서명"의 SHA-1을, Google Cloud Console OAuth에 **Android 클라이언트 하나 더**(패키지 `com.kangtaeyoung.daynote` + 그 SHA-1)로 추가. (릴리스 키스토어 SHA-1 `7C:D0:FC:…:E9:4A`는 이미 등록됨)
+4. **OAuth 동의화면 테스트→프로덕션** 게시.
+5. **앱 콘텐츠 입력**: 개인정보처리방침 URL(`https://labor7079-debug.github.io/daynote/privacy-policy.html`) · 데이터 보안 양식([docs/play-data-safety.md] 참고) · 앱 액세스=심사원 안내([docs/play-reviewer-notes.md]) · 콘텐츠 등급.
+6. **스토어 등록정보**: 문구([docs/play-store-listing.md]) · 아이콘 [docs/play-icon-512.png] · 피처그래픽 [docs/play-feature-1024x500.png] · **폰 스크린샷 최소 2장(캡처 완료됨)**.
+7. 검토용 출시 → 심사.
+
+### 상태/자산 요약 (승인 대기 중 참고)
+- **릴리스 서명**: `daynote-release.jks`(루트, gitignore) + `keystore.properties`(비번은 대화 이력·기기 보관). 분실 금지.
+- **릴리스 SHA-1**: `7C:D0:FC:10:5A:99:74:41:C5:1C:4D:A1:12:3B:99:7D:0A:B4:E9:4A` — OAuth 등록 완료.
+- **버전**: versionCode 1 / versionName 0.1.0. 다음 업로드마다 versionCode 증가.
+- **기기 확인됨**: 하단바 웜톤·톱니 아이콘·Warm Journal 재설계. **미확인(새 APK 권장)**: 리마인더 실제 알림, 백업/복원 왕복.
+- **데스크톱 배포물**: DayNote.exe(폴더형) + DayNote-1.0.0.msi 생성됨(`app\build\compose\binaries\main\`).
+
+### 남은 개선(P1, 급하지 않음 — 출시 후 업데이트로)
+- 종일 할 일 기본시각 알림 · 반복 일정/할 일 · 홈 화면 위젯 · 구글 캘린더 pull(양방향)·무음 재로그인 · 앱 잠금(생체인증).
+
+### 확정된 우선순위 (이전 세션)
+- **AI 검색/자료수집**: 드롭 — 기존 FTS 메모검색으로 충분.
