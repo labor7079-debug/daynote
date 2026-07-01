@@ -16,6 +16,7 @@ import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
 import com.kangtaeyoung.daynote.data.sync.SupabaseCloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.supabase.SupabaseSyncClient
+import com.kangtaeyoung.daynote.domain.usecase.AskAiUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveAiResultsUseCase
 import com.kangtaeyoung.daynote.domain.usecase.RunAiActionUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
@@ -92,6 +93,7 @@ val useCaseModule: Module = module {
     factory { ToggleTaskUseCase(get()) }
     factory { DeleteTaskUseCase(get()) }
     factory { RunAiActionUseCase(get()) }
+    factory { AskAiUseCase(get()) }
     factory { ObserveAiResultsUseCase(get()) }
 }
 

@@ -4,7 +4,12 @@
 >
 > _최종 업데이트: 2026-07-01_
 
-## 현재 위치: 자동 동기화 ✅ + 테마/다크모드 ✅ → 다음은 폰 기기 검증(개발자) + Phase 5 갤럭시 폴리시
+## 현재 위치: Phase 5-A/5-C + 기기 피드백 수정 완료 → 갤럭시탭/폴드7 재검증 대기
+
+- **이번 세션 요약(2026-07-01)**: 자동 동기화·테마/다크모드·「Quiet Cadence」 팔레트/디자인 자산·Phase 5-A(2단)·5-C1/2(S펜 필기 캔버스) 완료 후, **갤럭시탭·폴드7 기기 피드백 1차 수정**까지.
+- **기기 확인됨**: 테마 전환/유지 ✓, 색감 ✓, 수동 동기화 ✓, Phase 4(공유·요약/확장/교정) ✓, 구글캘린더 생성 ✓.
+- **이번에 고친 것**(아래 "기기 피드백 1차 수정" 참조): 🐞월 달력 겹침(MonthGrid Column 누락) · ✨스와이프 슬라이드 · ✨빈날짜 탭→메모 · 🐞에디터 커서(focusProperties) · ✨AI 자유질문 인라인.
+- **재검증 대기(개발자 실기기, 새 APK)**: ① 월 달력이 7열 그리드로 뜨는지(폴드 단일/탭 2단) ② 에디터 커서 위/아래 정상 ③ AI 자유질문 인라인 ④ 폰↔PC 자동 동기화 양방향 ⑤ S펜 필압/뒤집기.
 
 - **앱이 Android·데스크톱 양쪽에서 빌드됨** — `:app:assembleDebug` + `:app:desktopTest` 모두 **BUILD SUCCESSFUL** (테스트 20건 통과).
 - **DB 스키마 버전 4** (v1→v2 tasks.allDay, v2→v3 settings, v3→v4 ai_results 테이블). 마이그레이션은 데이터 보존.
@@ -46,6 +51,14 @@
    - ✅ **5-C1/5-C2 S펜 필기 캔버스(2026-07-01)**: Compose Canvas 자유 필기 — **commonMain 공유, 신규 의존성 0**. 마우스·손가락·S펜 공용. **필압**(S펜 pressure로 굵기 변조), **S펜 뒤집기=지우개**(`PointerType.Eraser` 자동 감지), 펜/지우개 토글·색 4종(테마색)·굵기 3단·실행취소·전체지우기. 자산: `ui/ink/{InkCanvas,InkScreen}.kt`. 네비 `Routes.INK`+`openInk()`, **에디터 상단바 "필기" 버튼**으로 진입. `awaitEachGesture`로 포인터 캡처(id 추적). **assembleDebug + compileKotlinDesktop 양쪽 BUILD SUCCESSFUL.**
    - **5-C3 ML Kit 텍스트 변환(다음, Android 전용)**: 잉크 획 → ML Kit Digital Ink 인식 → 텍스트를 메모 본문에 반영. `expect/actual`(Android=ML Kit, Desktop=미지원/대체). 필기 영속화도 함께 검토.
    - ⚠️ **기기 검증 권장**: 갤럭시에서 S펜 필압·뒤집기 지우개가 실제로 동작하는지(에디터→필기) 1회 확인. (CLI/데스크톱은 마우스만 검증 가능)
+
+### 기기 피드백 1차 수정 (2026-07-01, 갤럭시탭)
+> 확인됨: 테마 전환·유지 ✓, 색감 ✓, 수동 동기화 ✓, Phase 4 전부 ✓, 구글캘린더 생성 ✓.
+- 🐞 **태블릿/폴드 월 달력이 "한 줄"로 겹침** — **실제 원인 확정(2026-07-01)**: 창너비 감지는 정상이었음(진단 결과 탭 w=1204·compact=false·twoPane=true, 폴드 w=749·compact=false). 진짜 버그는 **`MonthGrid` 내부에 `Column` 래퍼가 없어서**, 부모 `Box`(스와이프 Box→`AnimatedContent` 내부도 Box)가 요일헤더+6주 Row 7개를 **세로로 안 쌓고 겹쳐** 한 줄처럼 보인 것. (WeekAgenda는 Column으로 감싸 있어 compact 화면은 멀쩡했음 → 지금껏 월 달력을 넓은 화면에서 제대로 본 적이 없어 못 잡힘.) **수정: `MonthGrid`를 `Column`으로 감쌈.** (레터박싱 아님 — 매니페스트 `resizeableActivity`는 무해하게 유지.)
+- ✨ **캘린더 전환 애니메이션**: 이전/다음(버튼·스와이프)에 가로 슬라이드(`AnimatedContent`, 방향 반영).
+- ✨ **빈 날짜 탭→메모 추가**: "이 날의 Memo가 없습니다. 탭하여 추가하세요." 영역 클릭 시 새 메모(+Memo 버튼과 동일).
+- 🐞 **에디터 커서 화살표**: 본문 첫 줄에서 위 화살표가 제목으로 점프 → `focusProperties{ up/down=Cancel }`로 포커스 이탈만 취소(커서 이동은 유지). **기기 테스트 요망**: 여러 줄에서 위/아래 커서 이동 정상 + 첫 줄 위 화살표가 제목으로 안 넘어가는지.
+- ✅ **AI 자유 질문 인라인(2026-07-01)**: 에디터 AI 패널에 **"AI에게 질문" 입력창** 추가 → 메모를 맥락으로 OpenAI 에 자유 질문하고 답을 그 자리에 표시(앱 전환 없음, 입력한 키 재사용). `AiAction.ASK` 추가(칩에선 제외), `AiRepository.ask()`/`AskAiUseCase`/`AiViewModel.ask()` 배선. 결과도 Room `ai_results` 저장. ("AI로 보내기" 공유 버튼은 그대로 둠 — 다른 앱으로 내보내는 용도.) **assembleDebug + desktopTest(20건) 양쪽 BUILD SUCCESSFUL.**
 10. **Phase 6 배포**: 앱 아이콘·스플래시, 데스크톱 `.exe` 정식 패키징(아래 메모), Play Console 내부 테스트.
 
 > 진행 전 권장: 기기에서 **DB v4 마이그레이션이 정상(기존 데이터 보존, 크래시 없음)** 인지 1회 확인.
@@ -222,13 +235,17 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # 번들 JDK 21
 
 ```
 PROGRESS.md 읽고 이어서 진행해줘.
-현재: Phase 1·2·3-B(앱→구글캘린더 push)·4-A/4-B(AI 공유+OpenAI 요약/확장/교정)·
-6(Supabase 멀티기기 동기화) 코드 완료. PC에서 Supabase 동기화 동작 확인됨(폰 검증은 남음).
-위 "다음 작업" 중 하나를 진행(권장 1번=자동 동기화). 무엇부터 할지 먼저 물어보고 시작해줘.
+현재: Phase 1·2·3-B·4·5-A·5-C1/2·6 코드 완료 + 테마/다크·Quiet Cadence 디자인 완료.
+직전 세션에서 갤럭시탭/폴드7 기기 피드백 1차 수정(월달력 겹침·스와이프·빈칸탭·커서·AI자유질문).
+→ 먼저 개발자 재검증 결과를 물어봐줘: ①월 달력 7열 그리드(폴드 단일/탭 2단) ②에디터 커서 ③AI 자유질문
+  ④폰↔PC 자동 동기화 양방향 ⑤S펜 필압/뒤집기.  이상 없으면 다음 작업(아래) 중 택1.
 빌드: $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr" 로
      :app:assembleDebug + :app:desktopTest (현재 테스트 20건).
-데스크톱 실행(GUI 확인): :app:run  (창 닫으면 종료).
+데스크톱 실행(GUI 확인): :app:run  (창 1180×780=2단 기본, 창 닫으면 종료).
 .exe: createDistributable "-Pdaynote.jpackage.jdk=<JDK25경로>" (실행 중인 DayNote.exe 먼저 종료).
+
+남은 작업(우선순위): (A)기기 재검증→커밋  (B)5-C3 ML Kit 텍스트변환/필기 영속화
+(C)AI 결과 이력 UI  (D)배포: 아이콘·스플래시·.exe 패키징·Play Console  (E)보류: 구글 pull·무음 재로그인.
 ```
 
 ### 확정된 우선순위 (2026-07-01)

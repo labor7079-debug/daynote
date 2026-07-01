@@ -13,6 +13,12 @@ class RunAiActionUseCase(private val repo: AiRepository) {
         repo.run(action, text, noteId)
 }
 
+/** 자유 질문 — 메모를 맥락으로 OpenAI 에 질문한다(4-B, 인라인 답변). */
+class AskAiUseCase(private val repo: AiRepository) {
+    suspend operator fun invoke(question: String, sourceText: String, noteId: String?): Result<AiResult> =
+        repo.ask(question, sourceText, noteId)
+}
+
 class ObserveAiResultsUseCase(private val repo: AiRepository) {
     operator fun invoke(noteId: String): Flow<List<AiResult>> = repo.observeResults(noteId)
 }

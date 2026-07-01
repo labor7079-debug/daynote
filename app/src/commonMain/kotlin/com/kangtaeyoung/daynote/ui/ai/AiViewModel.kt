@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kangtaeyoung.daynote.domain.model.AiAction
 import com.kangtaeyoung.daynote.domain.model.AiResult
+import com.kangtaeyoung.daynote.domain.usecase.AskAiUseCase
 import com.kangtaeyoung.daynote.domain.usecase.RunAiActionUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +25,7 @@ sealed interface AiUiState {
  */
 class AiViewModel(
     private val runAiAction: RunAiActionUseCase,
+    private val askAi: AskAiUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AiUiState>(AiUiState.Idle)
@@ -34,6 +36,17 @@ class AiViewModel(
         _uiState.value = AiUiState.Loading(action)
         viewModelScope.launch {
             runAiAction(action, sourceText, noteId)
+                .onSuccess { _uiState.value = AiUiState.Success(it) }
+                .onFailure { _uiState.value = AiUiState.Error(it.message ?: "AI 호출 실패") }
+        }
+    }
+
+    /** 자유 질문 — 메모를 맥락으로 OpenAI 에 묻고 답을 인라인 표시(앱 전환 없음). */
+    fun ask(question: String, sourceText: String, noteId: String?) {
+        if (_uiState.value is AiUiState.Loading) return
+        _uiState.value = AiUiState.Loading(AiAction.ASK)
+        viewModelScope.launch {
+            askAi(question, sourceText, noteId)
                 .onSuccess { _uiState.value = AiUiState.Success(it) }
                 .onFailure { _uiState.value = AiUiState.Error(it.message ?: "AI 호출 실패") }
         }

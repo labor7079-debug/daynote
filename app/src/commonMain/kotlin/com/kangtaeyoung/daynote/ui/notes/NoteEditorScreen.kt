@@ -32,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -166,7 +168,14 @@ fun NoteEditorScreen(
                     onValueChange = vm::onContentChange,
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.fillMaxWidth(),
+                    // 위/아래 화살표의 '포커스 이탈'만 취소 → 첫 줄에서 제목으로 점프하지 않고
+                    // 필드 안에서 커서만 움직인다(텍스트 커서 이동은 그대로 동작).
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusProperties {
+                            up = FocusRequester.Cancel
+                            down = FocusRequester.Cancel
+                        },
                 )
             }
 

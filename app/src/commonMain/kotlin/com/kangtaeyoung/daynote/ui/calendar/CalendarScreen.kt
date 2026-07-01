@@ -1,5 +1,12 @@
 package com.kangtaeyoung.daynote.ui.calendar
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -125,8 +132,10 @@ fun CalendarScreen(
             }
 
             // 이전/다음 이동(버튼·스와이프 공용). compact=주 단위, 아니면 월 단위.
-            val goPrev = { anchor = if (compact) anchor.plus(-7, DateTimeUnit.DAY) else anchor.firstOfMonthPlusMonths(-1) }
-            val goNext = { anchor = if (compact) anchor.plus(7, DateTimeUnit.DAY) else anchor.firstOfMonthPlusMonths(1) }
+            // navDir: 슬라이드 방향(+1=다음/오른쪽에서, -1=이전/왼쪽에서).
+            var navDir by remember { mutableStateOf(1) }
+            val goPrev = { navDir = -1; anchor = if (compact) anchor.plus(-7, DateTimeUnit.DAY) else anchor.firstOfMonthPlusMonths(-1) }
+            val goNext = { navDir = 1; anchor = if (compact) anchor.plus(7, DateTimeUnit.DAY) else anchor.firstOfMonthPlusMonths(1) }
 
             // 달력(헤더 + 그리드/아젠다) — 1단·2단 배치가 공유. 가로 스와이프로 이전/다음(왼쪽=다음, 오른쪽=이전).
             val calendarArea: @Composable () -> Unit = {
@@ -152,10 +161,22 @@ fun CalendarScreen(
                         )
                     },
                 ) {
-                    if (compact) {
-                        WeekAgenda(visibleDays, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
-                    } else {
-                        MonthGrid(anchor, visibleDays, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                    // 이전/다음 전환에 가로 슬라이드 애니메이션(방향은 navDir).
+                    AnimatedContent(
+                        targetState = anchor,
+                        transitionSpec = {
+                            val dir = navDir
+                            (slideInHorizontally(tween(280)) { w -> dir * w } + fadeIn(tween(280)))
+                                .togetherWith(slideOutHorizontally(tween(280)) { w -> -dir * w } + fadeOut(tween(280)))
+                        },
+                        label = "calendar-nav",
+                    ) { a ->
+                        val days = if (compact) a.weekDays() else monthGridDays(a)
+                        if (compact) {
+                            WeekAgenda(days, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                        } else {
+                            MonthGrid(a, days, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                        }
                     }
                 }
             }
@@ -223,31 +244,35 @@ private fun MonthGrid(
     onSelect: (LocalDate) -> Unit,
     onOpenNote: (String) -> Unit,
 ) {
-    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-        weekdayHeaders.forEach { d ->
-            Text(
-                text = d,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f).padding(4.dp),
-            )
-        }
-    }
-    val today = today()
-    days.chunked(7).forEach { week ->
+    // 요일 헤더 + 6주 행을 세로로 쌓는다. Column 이 없으면(부모가 Box/AnimatedContent) 행들이 겹쳐
+    // "한 줄"처럼 보인다 — 반드시 Column 으로 감싼다.
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-            week.forEach { day ->
-                val inMonth = day.monthNumber == anchor.monthNumber && day.year == anchor.year
-                DayCell(
-                    day = day,
-                    inMonth = inMonth,
-                    isSelected = day == selected,
-                    isToday = day == today,
-                    notes = notesByDate[day].orEmpty(),
-                    onClick = { onSelect(day) },
-                    onOpenNote = onOpenNote,
-                    modifier = Modifier.weight(1f),
+            weekdayHeaders.forEach { d ->
+                Text(
+                    text = d,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f).padding(4.dp),
                 )
+            }
+        }
+        val today = today()
+        days.chunked(7).forEach { week ->
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+                week.forEach { day ->
+                    val inMonth = day.monthNumber == anchor.monthNumber && day.year == anchor.year
+                    DayCell(
+                        day = day,
+                        inMonth = inMonth,
+                        isSelected = day == selected,
+                        isToday = day == today,
+                        notes = notesByDate[day].orEmpty(),
+                        onClick = { onSelect(day) },
+                        onOpenNote = onOpenNote,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
@@ -375,7 +400,17 @@ private fun DayDetail(
             TextButton(onClick = onAddNote) { Text("+ Memo 추가") }
         }
         if (notes.isEmpty()) {
-            Text("이 날의 Memo가 없습니다.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // 빈 안내 영역을 탭해도 곧바로 새 메모 작성으로 진입한다(+ Memo 버튼과 동일).
+            Text(
+                "이 날의 Memo가 없습니다. 탭하여 추가하세요.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onAddNote)
+                    .padding(vertical = 12.dp),
+            )
         }
         notes.forEach { note ->
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

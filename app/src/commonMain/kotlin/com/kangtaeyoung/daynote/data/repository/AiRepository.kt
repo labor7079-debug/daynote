@@ -17,6 +17,10 @@ import kotlinx.coroutines.flow.map
  */
 interface AiRepository {
     suspend fun run(action: AiAction, sourceText: String, noteId: String?): Result<AiResult>
+
+    /** 자유 질문 — 메모([sourceText])를 맥락으로 [question] 에 답한다. 메모가 비면 순수 질문. */
+    suspend fun ask(question: String, sourceText: String, noteId: String?): Result<AiResult>
+
     fun observeResults(noteId: String): Flow<List<AiResult>>
 }
 
@@ -50,6 +54,35 @@ class AiRepositoryImpl(
             noteId = noteId,
             action = action,
             sourceText = sourceText,
+            resultText = text,
+            model = model,
+            createdAt = nowMillis(),
+        ).also { dao.upsert(it.toEntity()) }
+    }
+
+    override suspend fun ask(
+        question: String,
+        sourceText: String,
+        noteId: String?,
+    ): Result<AiResult> = runCatching {
+        val key = keys.openAiKey()?.takeIf { it.isNotBlank() }
+            ?: error("OpenAI API 키가 설정되지 않았습니다. 설정에서 키를 입력하세요.")
+        if (question.isBlank()) error("질문을 입력하세요.")
+
+        // 메모가 있으면 맥락으로 함께 보낸다(없으면 순수 질문).
+        val user = if (sourceText.isBlank()) {
+            question
+        } else {
+            "다음은 내 메모야:\n\n$sourceText\n\n---\n\n위 메모를 참고해서 답해줘.\n질문: $question"
+        }
+        val text = api.chat(apiKey = key, model = model, system = AiAction.ASK.systemPrompt, user = user)
+
+        // 이력에는 질문 문장을 sourceText 로 남긴다(무엇을 물었는지 보이도록).
+        AiResult(
+            id = randomUuid(),
+            noteId = noteId,
+            action = AiAction.ASK,
+            sourceText = question,
             resultText = text,
             model = model,
             createdAt = nowMillis(),
