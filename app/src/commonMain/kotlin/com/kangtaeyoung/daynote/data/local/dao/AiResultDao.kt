@@ -16,4 +16,8 @@ interface AiResultDao {
 
     @Query("SELECT * FROM ai_results WHERE noteId = :noteId ORDER BY createdAt DESC")
     fun observeForNote(noteId: String): Flow<List<AiResultEntity>>
+
+    /** 이력 항목 1건 삭제(사용자가 지운 결과). 스키마 변경 없음 — 행 삭제뿐. */
+    @Query("DELETE FROM ai_results WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

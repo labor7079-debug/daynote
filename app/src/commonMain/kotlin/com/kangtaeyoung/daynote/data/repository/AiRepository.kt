@@ -29,6 +29,9 @@ interface AiRepository {
     suspend fun suggestTitle(sourceText: String): Result<String>
 
     fun observeResults(noteId: String): Flow<List<AiResult>>
+
+    /** 이력 항목 1건 삭제. observeResults Flow 가 자동 갱신된다. */
+    suspend fun deleteResult(id: String)
 }
 
 class AiRepositoryImpl(
@@ -114,6 +117,8 @@ class AiRepositoryImpl(
 
     override fun observeResults(noteId: String): Flow<List<AiResult>> =
         dao.observeForNote(noteId).map { list -> list.map { it.toDomain() } }
+
+    override suspend fun deleteResult(id: String) = dao.deleteById(id)
 
     /** 모델이 따옴표·마침표·여러 줄로 답해도 한 줄 제목으로 정제한다. */
     private fun cleanTitle(raw: String): String =
