@@ -85,7 +85,8 @@
    - `App()`이 테마 관찰 → SYSTEM=`isSystemInDarkTheme()`, LIGHT/DARK=강제 → `DayNoteTheme(darkTheme=…)`. 기존 light/darkColorScheme 그대로 활용.
    - 설정 화면 최상단 `ThemeSection`(SegmentedButton 3택). 자산: `domain/model/ThemeMode.kt`, `ui/settings/*` 수정. **assembleDebug + desktopTest(20건) 양쪽 BUILD SUCCESSFUL.**
    - ✨ **팔레트 교체(2026-07-01, 「Quiet Cadence」 디자인)**: 기본 보라 팔레트 → 정제된 웜 모노크롬. `Color.kt`/`Theme.kt` 전면 교체(라이트/다크 풀 롤). **매핑 원칙: 슬레이트(#3A4E62)=primary(상호작용 전반), 클레이(#AA422D)=tertiary(오늘·중요·핀만 절제 사용)** — "화려함 배제" 준수. 배경=웜 본(#F0ECE3), 다크=웜 차콜(#1A1815). 디자인 자산: `design/quiet-cadence.md`(철학) + `design/quiet-cadence-*.png`/`.pdf`(3-plate 아틀라스: Time·Text·Task). assembleDebug+compileKotlinDesktop 양쪽 BUILD SUCCESSFUL.
-6. **AI 결과 이력 UI**: `ObserveAiResultsUseCase`는 배선됨 — 메모별 과거 AI 결과 목록 표시(현재 미사용).
+6. ✅ **AI 결과 이력 UI 완료(2026-07-01)**: 에디터 AI 패널 하단에 **"지난 AI 결과 N" 접이식 목록** 추가 — 메모별 과거 결과(요약·확장·교정·질문)를 최신순 표시. 각 항목: 동작 라벨 + "M월 D일 HH:mm" + 결과 텍스트(질문은 `Q. …` 함께), **"메모에 반영"(재사용) · "삭제"**. Room 이 진실의 원천이라 오프라인·재시작 유지, 새 결과·삭제 자동 반영. 배선: `AiResultDao.deleteById`(행 삭제뿐, **마이그레이션 0**) → `AiRepository.deleteResult` → `DeleteAiResultUseCase`(Koin 등록) → `AiViewModel.history`(noteId 없으면 빈 목록)·`deleteHistory`. `ObserveAiResultsUseCase`가 드디어 사용됨. `DateUtils.toShortDateTimeLabel` 추가. 테스트 +1(deleteResult 격리). 신규 의존성 0.
+   - ⚠️ **빌드 검증 못 함(이 클라우드 컨테이너 한정)**: egress 정책이 `dl.google.com`(Android Gradle Plugin) 차단 → Gradle 태스크 실행 불가. **개발자 환경에서 `assembleDebug`+`desktopTest` 1회 확인 필요.** 코드 리뷰로는 정합성 확인됨.
 7. **3-B3c 캘린더→앱 pull**(보류): "앱이 만든 항목(remoteId 있는 것)만 양방향". 충돌 서버 `updated` 기준.
 8. **무음 재로그인**(구글 캘린더): 앱 시작 시(토글 ON) Authorization API 무음 인가로 토큰 자동 확보.
 9. **Phase 5 갤럭시 폴리시** (진행 중 — 작은 단위로):
