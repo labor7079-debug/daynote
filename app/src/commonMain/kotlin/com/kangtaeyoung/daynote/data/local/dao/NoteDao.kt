@@ -23,6 +23,10 @@ interface NoteDao {
     @Upsert
     suspend fun upsertAll(notes: List<NoteEntity>)
 
+    /** 백업용 — 소프트 삭제 포함 모든 행(충실한 내보내기). */
+    @Query("SELECT * FROM notes")
+    suspend fun getAllRaw(): List<NoteEntity>
+
     /** 소프트 삭제: 실제 행을 지우지 않고 [deletedAt] 만 찍어 동기화가 깨지지 않게 한다. */
     @Query("UPDATE notes SET deletedAt = :timestamp, updatedAt = :timestamp WHERE id = :id")
     suspend fun softDelete(id: String, timestamp: Long)

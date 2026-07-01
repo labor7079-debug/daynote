@@ -2,6 +2,7 @@ package com.kangtaeyoung.daynote.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kangtaeyoung.daynote.data.backup.BackupManager
 import com.kangtaeyoung.daynote.data.repository.SettingsRepository
 import com.kangtaeyoung.daynote.data.security.ApiKeyProvider
 import com.kangtaeyoung.daynote.data.sync.CalendarSyncManager
@@ -23,6 +24,7 @@ class SettingsViewModel(
     private val settings: SettingsRepository,
     private val apiKeys: ApiKeyProvider,
     private val cloud: CloudSyncManager,
+    private val backup: BackupManager,
 ) : ViewModel() {
 
     val syncAvailable: Boolean = sync.isAvailable
@@ -134,5 +136,30 @@ class SettingsViewModel(
 
     fun syncNow() {
         viewModelScope.launch { sync.syncNow() }
+    }
+
+    // --- 로컬 백업/복원 ---
+    private val _backupMsg = MutableStateFlow<String?>(null)
+    val backupMsg: StateFlow<String?> = _backupMsg.asStateFlow()
+
+    fun setBackupMsg(msg: String) { _backupMsg.value = msg }
+    fun clearBackupMsg() { _backupMsg.value = null }
+
+    /** 내보내기: DB 를 JSON 으로 만든 뒤 [onReady] 로 넘겨 파일 저장(플랫폼 IO)을 시작한다. */
+    fun buildExport(onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            runCatching { backup.exportJson() }
+                .onSuccess { onReady(it) }
+                .onFailure { _backupMsg.value = "내보내기 준비 실패: ${it.message}" }
+        }
+    }
+
+    /** 가져오기: 선택한 파일 내용을 복원(upsert). */
+    fun importBackup(json: String) {
+        viewModelScope.launch {
+            runCatching { backup.importJson(json) }
+                .onSuccess { _backupMsg.value = "복원 완료 — 메모 ${it.notes}건 · 할 일 ${it.tasks}건" }
+                .onFailure { _backupMsg.value = "복원 실패: 올바른 DayNote 백업 파일인지 확인하세요." }
+        }
     }
 }

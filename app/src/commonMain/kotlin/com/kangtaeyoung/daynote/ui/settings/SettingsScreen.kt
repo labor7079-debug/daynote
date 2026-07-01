@@ -52,7 +52,8 @@ fun SettingsScreen(
     val settings = koinInject<SettingsRepository>()
     val apiKeys = koinInject<ApiKeyProvider>()
     val cloud = koinInject<CloudSyncManager>()
-    val vm = viewModel { SettingsViewModel(sync, settings, apiKeys, cloud) }
+    val backup = koinInject<com.kangtaeyoung.daynote.data.backup.BackupManager>()
+    val vm = viewModel { SettingsViewModel(sync, settings, apiKeys, cloud, backup) }
     val state by vm.state.collectAsState()
     val enabled by vm.syncEnabled.collectAsState()
     val hasApiKey by vm.hasApiKey.collectAsState()
@@ -62,7 +63,9 @@ fun SettingsScreen(
     val supabaseConfig by vm.supabaseConfig.collectAsState()
     val themeMode by vm.themeMode.collectAsState()
     val autoTitle by vm.autoTitle.collectAsState()
+    val backupMsg by vm.backupMsg.collectAsState()
     val startGoogleSignIn = rememberGoogleCalendarSignIn()
+    val backupControls = rememberBackupControls(onImported = vm::importBackup, onResult = vm::setBackupMsg)
 
     Scaffold(
         topBar = {
@@ -155,7 +158,41 @@ fun SettingsScreen(
                 autoTitle = autoTitle,
                 onAutoTitleChange = vm::setAutoTitle,
             )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            BackupSection(
+                message = backupMsg,
+                onExport = { vm.buildExport { json -> backupControls.exportTo(json) } },
+                onImport = { backupControls.importFrom() },
+            )
         }
+    }
+}
+
+/** 로컬 백업/복원 — 메모·할 일 전체를 파일로 내보내고, 그 파일로 복원한다(오프라인 안전망). */
+@Composable
+private fun BackupSection(
+    message: String?,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+) {
+    Text("백업 / 복원", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "메모와 할 일 전체를 파일로 저장하고, 그 파일로 되돌립니다. 기기 이전·실수 삭제 대비용입니다.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = onExport) { Text("내보내기") }
+        OutlinedButton(onClick = onImport) { Text("가져오기") }
+    }
+    if (message != null) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

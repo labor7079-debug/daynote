@@ -1,5 +1,6 @@
 package com.kangtaeyoung.daynote.di
 
+import com.kangtaeyoung.daynote.data.backup.BackupManager
 import com.kangtaeyoung.daynote.data.local.AppDatabase
 import com.kangtaeyoung.daynote.data.local.buildDatabase
 import com.kangtaeyoung.daynote.data.remote.openai.OpenAiClient
@@ -66,6 +67,8 @@ val repositoryModule: Module = module {
     single<NoteRepository> { NoteRepositoryImpl(get(), get()) }
     single<TaskRepository> { TaskRepositoryImpl(get(), get()) }
     single<SettingsRepository> { SettingsRepositoryImpl(get()) }
+    // 로컬 백업/복원(내보내기·가져오기) — DAO 직접 사용.
+    single { BackupManager(get(), get()) }
     // AI(Phase 4-B): OpenAI 단일. ApiKeyProvider 는 platformModule 이 제공.
     single { OpenAiClient() }
     single<AiRepository> { AiRepositoryImpl(get(), get(), get()) }

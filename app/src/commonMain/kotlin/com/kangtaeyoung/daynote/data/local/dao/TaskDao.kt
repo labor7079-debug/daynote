@@ -20,6 +20,10 @@ interface TaskDao {
     @Upsert
     suspend fun upsertAll(tasks: List<TaskEntity>)
 
+    /** 백업용 — 소프트 삭제 포함 모든 행(충실한 내보내기). */
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllRaw(): List<TaskEntity>
+
     /** 완료/미완료 토글. UI 의 체크박스 동선에 맞춰 단일 UPDATE 로 원자적으로 뒤집는다. */
     @Query("UPDATE tasks SET isDone = NOT isDone, updatedAt = :timestamp WHERE id = :id")
     suspend fun toggleDone(id: String, timestamp: Long)
