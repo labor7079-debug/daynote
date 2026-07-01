@@ -1,5 +1,6 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -8,6 +9,13 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+}
+
+// 릴리스 서명 정보(비밀) — 루트의 keystore.properties(=git 제외)에서 읽는다.
+// 파일이 없으면 서명 미설정(디버그·CI 빌드는 그대로 동작). keystore.properties.example 참고.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
 
 kotlin {
@@ -102,6 +110,18 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        // keystore.properties 가 있을 때만 릴리스 서명 구성(없으면 미서명 — 로컬/CI 안전).
+        if (keystorePropsFile.exists()) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -109,6 +129,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // 키스토어가 있으면 릴리스 서명 적용(bundleRelease/assembleRelease → Play 업로드/사이드로드 가능).
+            if (keystorePropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

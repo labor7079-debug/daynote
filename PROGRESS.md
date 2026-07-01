@@ -262,6 +262,21 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # 번들 JDK 21
   - **URL 정규화**: 사용자가 Supabase URL에 `/rest/v1/`까지 붙여 넣어 `PGRST125 Invalid path`(404) 발생 → `SupabaseSyncClient.base()`가 끝의 `/rest/v1`·`/auth/v1`를 자동 제거하도록 보완.
   - **encodeDefaults**: 일괄 upsert 시 기본값(null/false) 필드가 생략돼 객체마다 키가 달라 `PGRST102 All object keys must match`(400) 발생 → 클라이언트 Json에 `encodeDefaults=true`+`explicitNulls=true` 설정해 모든 행의 키 집합 통일.
 
+## 배포 설정 (2026-07-01)
+> "다른 PC/안드로이드 배포" 요청으로 준비. 코드 3종 배선 완료(빌드 검증됨). 산출물은 커밋 제외.
+
+### 안드로이드 release 서명 배선 ✅
+- `build.gradle.kts`: 루트 `keystore.properties`(=git 제외)에서 읽는 `signingConfigs.release` + release 빌드타입에 적용. **파일 없으면 미서명**(디버그·CI 안전) — `assembleDebug` 통과 확인.
+- `keystore.properties.example`(템플릿, keytool 생성·SHA-1 확인 명령 포함), `.gitignore`에 `*.jks`·`keystore.properties` 추가.
+- **개발자 할 일**: ① `keytool -genkeypair`로 키스토어 생성(분실 금지) → `keystore.properties` 작성 → `:app:bundleRelease`(AAB)/`:app:assembleRelease`(APK). ② ⚠️ **릴리스 SHA-1 + Play 앱서명 SHA-1을 Google Cloud OAuth 클라이언트에 등록**(안 하면 캘린더 로그인 깨짐), OAuth 동의화면 테스트→프로덕션.
+
+### 3-OS 자동 빌드 CI ✅
+- `.github/workflows/build.yml`: `workflow_dispatch`/`v*` 태그 → **desktop 매트릭스(win/mac/linux) `createDistributable`**(app-image, WiX 등 외부도구 불필요) + **android `bundleRelease`(AAB)**. temurin 21(jpackage 포함). 안드로이드 서명은 저장소 Secrets(`KEYSTORE_BASE64`/`KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD`) 있으면 자동 적용.
+
+### 데스크톱 배포 요약
+- **Windows 다른 PC**: `createDistributable` 산출 `app\build\compose\binaries\main\app\DayNote\` **폴더째 복사** → `DayNote.exe`(자바 번들, ~133MB). 또는 `:app:packageMsi`로 .msi. ⚠️ 미서명이라 SmartScreen "알 수 없는 게시자"("추가 정보→실행"). 코드서명 인증서(유료)로 제거 가능.
+- **Mac/Linux**: jpackage 크로스빌드 불가 → 그 OS에서 `:app:packageDmg`/`:app:packageDeb`(또는 위 CI).
+
 ## 데스크톱 실행파일(.exe) 빌드 — 메모
 - **빌드/실행 분리**: `:app:run`·`assembleDebug`·`desktopTest`는 JBR로 OK. 하지만 **배포물(`createDistributable`/`packageMsi`)은 `jpackage` 필요** → JBR엔 없음.
 - 이 PC엔 **Eclipse Adoptium JDK 25**(`C:\Users\admin\AppData\Local\Programs\Eclipse Adoptium\jdk-25.0.3.9-hotspot`) 설치됨. Gradle 8.11.1은 JDK 25 전체 실행이 불안정하므로 **빌드는 JBR, jpackage만 JDK 25**로 분리.
