@@ -33,6 +33,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -78,6 +80,7 @@ import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
 import com.kangtaeyoung.daynote.ui.components.TaskRow
 import com.kangtaeyoung.daynote.ui.components.TopDestination
+import com.kangtaeyoung.daynote.ui.theme.SettingsGearIcon
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -122,7 +125,15 @@ fun CalendarScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Calendar") },
-                actions = { TextButton(onClick = onOpenSettings) { Text("Settings") } },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            imageVector = SettingsGearIcon,
+                            contentDescription = "설정",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
             )
         },
         bottomBar = { DayNoteBottomBar(current = TopDestination.Calendar, onSelect = onSelectDestination) },
