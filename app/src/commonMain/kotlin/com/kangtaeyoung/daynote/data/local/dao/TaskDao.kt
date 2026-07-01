@@ -107,4 +107,14 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET remoteId = NULL, syncStatus = 'SYNCED' WHERE id = :id")
     suspend fun clearRemote(id: String)
+
+    // --- 클라우드 동기화(Phase 6, Supabase · 워터마크 델타) ---
+
+    /** [since] 이후 변경된 모든 할 일(삭제 tombstone 포함). 클라우드 push 대상. */
+    @Query("SELECT * FROM tasks WHERE updatedAt > :since")
+    suspend fun getTasksModifiedSince(since: Long): List<TaskEntity>
+
+    /** id 로 원본 행 조회(소프트 삭제 포함). pull 충돌 비교용. */
+    @Query("SELECT * FROM tasks WHERE id = :id")
+    suspend fun getByIdRaw(id: String): TaskEntity?
 }

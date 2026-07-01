@@ -2,10 +2,12 @@ package com.kangtaeyoung.daynote.ui.calendar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -28,6 +30,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -38,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,6 +115,8 @@ fun CalendarScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             val compact = maxWidth < 600.dp
+            // Expanded(≥840dp — 탭 가로·폴드 펼침·PC): 좌 월 달력 + 우 상세 마스터-디테일 2단.
+            val twoPane = maxWidth >= 840.dp
             val visibleDays = if (compact) anchor.weekDays() else monthGridDays(anchor)
 
             LaunchedEffect(visibleDays.first(), visibleDays.last()) {
@@ -118,22 +124,43 @@ fun CalendarScreen(
                 vm.setVisibleRange(start, end)
             }
 
-            Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            // 이전/다음 이동(버튼·스와이프 공용). compact=주 단위, 아니면 월 단위.
+            val goPrev = { anchor = if (compact) anchor.plus(-7, DateTimeUnit.DAY) else anchor.firstOfMonthPlusMonths(-1) }
+            val goNext = { anchor = if (compact) anchor.plus(7, DateTimeUnit.DAY) else anchor.firstOfMonthPlusMonths(1) }
+
+            // 달력(헤더 + 그리드/아젠다) — 1단·2단 배치가 공유. 가로 스와이프로 이전/다음(왼쪽=다음, 오른쪽=이전).
+            val calendarArea: @Composable () -> Unit = {
                 CalendarHeader(
                     label = if (compact) "${visibleDays.first().monthNumber}월 ${visibleDays.first().dayOfMonth}일 주" else anchor.monthLabel(),
-                    onPrev = { anchor = if (compact) anchor.plus(-7, DateTimeUnit.DAY) else anchor.firstOfMonthPlusMonths(-1) },
-                    onNext = { anchor = if (compact) anchor.plus(7, DateTimeUnit.DAY) else anchor.firstOfMonthPlusMonths(1) },
+                    onPrev = goPrev,
+                    onNext = goNext,
                     onToday = { anchor = today(); vm.selectDate(today()) },
                 )
-
-                if (compact) {
-                    WeekAgenda(visibleDays, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
-                } else {
-                    MonthGrid(anchor, visibleDays, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                Box(
+                    modifier = Modifier.fillMaxWidth().pointerInput(compact) {
+                        var total = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { total = 0f },
+                            onDragEnd = {
+                                val threshold = 56.dp.toPx()
+                                when {
+                                    total <= -threshold -> goNext()
+                                    total >= threshold -> goPrev()
+                                }
+                            },
+                            onHorizontalDrag = { _, dragAmount -> total += dragAmount },
+                        )
+                    },
+                ) {
+                    if (compact) {
+                        WeekAgenda(visibleDays, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                    } else {
+                        MonthGrid(anchor, visibleDays, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                    }
                 }
+            }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
+            val detailArea: @Composable () -> Unit = {
                 DayDetail(
                     date = selectedDate,
                     notes = notesForSelected,
@@ -145,6 +172,27 @@ fun CalendarScreen(
                     onToggleTask = vm::toggle,
                     onDeleteTask = vm::removeTask,
                 )
+            }
+
+            if (twoPane) {
+                // 좌우 2단 — 같은 선택 날짜 상태를 공유(달력 칸 탭 → 우측 상세 즉시 갱신).
+                Row(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier.weight(0.58f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                    ) { calendarArea() }
+                    VerticalDivider()
+                    Column(
+                        modifier = Modifier.weight(0.42f).fillMaxHeight().verticalScroll(rememberScrollState())
+                            .padding(top = 12.dp),
+                    ) { detailArea() }
+                }
+            } else {
+                // 1단(스택) — 폰=주 아젠다, 태블릿 세로/폴드 접힘=월 달력, 아래 상세.
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    calendarArea()
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    detailArea()
+                }
             }
         }
     }

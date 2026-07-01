@@ -96,6 +96,19 @@ interface NoteDao {
     @Query("UPDATE notes SET remoteId = NULL, syncStatus = 'SYNCED' WHERE id = :id")
     suspend fun clearRemote(id: String)
 
+    // --- 클라우드 동기화(Phase 6, Supabase · 워터마크 델타) ---
+
+    /**
+     * [since] 이후 변경된 모든 메모(삭제 tombstone 포함 — deletedAt 필터 없음).
+     * 클라우드 push 대상 선정. syncStatus 와 독립이라 캘린더 동기화와 간섭하지 않는다.
+     */
+    @Query("SELECT * FROM notes WHERE updatedAt > :since")
+    suspend fun getNotesModifiedSince(since: Long): List<NoteEntity>
+
+    /** id 로 원본 행 조회(소프트 삭제 포함). pull 충돌 비교용. */
+    @Query("SELECT * FROM notes WHERE id = :id")
+    suspend fun getByIdRaw(id: String): NoteEntity?
+
     // --- 전문 검색 (FTS4) ---
 
     /**

@@ -5,13 +5,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -19,13 +26,21 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kangtaeyoung.daynote.data.repository.SettingsRepository
+import com.kangtaeyoung.daynote.data.security.ApiKeyProvider
 import com.kangtaeyoung.daynote.data.sync.CalendarSyncManager
+import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
+import com.kangtaeyoung.daynote.data.sync.CloudSyncState
 import com.kangtaeyoung.daynote.data.sync.SyncState
+import com.kangtaeyoung.daynote.domain.model.ThemeMode
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,9 +50,17 @@ fun SettingsScreen(
 ) {
     val sync = koinInject<CalendarSyncManager>()
     val settings = koinInject<SettingsRepository>()
-    val vm = viewModel { SettingsViewModel(sync, settings) }
+    val apiKeys = koinInject<ApiKeyProvider>()
+    val cloud = koinInject<CloudSyncManager>()
+    val vm = viewModel { SettingsViewModel(sync, settings, apiKeys, cloud) }
     val state by vm.state.collectAsState()
     val enabled by vm.syncEnabled.collectAsState()
+    val hasApiKey by vm.hasApiKey.collectAsState()
+    val cloudState by vm.cloudState.collectAsState()
+    val cloudEnabled by vm.cloudSyncEnabled.collectAsState()
+    val cloudBusy by vm.cloudBusy.collectAsState()
+    val supabaseConfig by vm.supabaseConfig.collectAsState()
+    val themeMode by vm.themeMode.collectAsState()
     val startGoogleSignIn = rememberGoogleCalendarSignIn()
 
     Scaffold(
@@ -49,9 +72,21 @@ fun SettingsScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding() // 가상 키보드가 뜨면 스크롤 영역을 줄여 입력칸이 가려지지 않게
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            ThemeSection(
+                mode = themeMode,
+                onSelect = vm::setThemeMode,
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
             Text("구글 캘린더 동기화", style = MaterialTheme.typography.titleMedium)
             Text(
                 text = state.describe(),
@@ -90,7 +125,220 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            CloudSyncSection(
+                enabled = cloudEnabled,
+                statusText = cloudState.describe(),
+                signedIn = cloudState is CloudSyncState.SignedIn ||
+                    cloudState is CloudSyncState.Syncing ||
+                    cloudState is CloudSyncState.Synced,
+                busy = cloudBusy,
+                url = supabaseConfig.url,
+                anonKey = supabaseConfig.anonKey,
+                onToggle = vm::setCloudSyncEnabled,
+                onSaveConfig = vm::saveSupabaseConfig,
+                onSignIn = vm::cloudSignIn,
+                onSignUp = vm::cloudSignUp,
+                onSignOut = vm::cloudSignOut,
+                onSyncNow = vm::cloudSyncNow,
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            ApiKeySection(
+                hasKey = hasApiKey,
+                onSave = vm::saveApiKey,
+                onClear = vm::clearApiKey,
+            )
         }
+    }
+}
+
+/** 화면 테마 선택(시스템/라이트/다크). 선택은 즉시 영속되어 앱 전체에 반영된다. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeSection(
+    mode: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
+) {
+    val options = listOf(
+        ThemeMode.SYSTEM to "시스템",
+        ThemeMode.LIGHT to "라이트",
+        ThemeMode.DARK to "다크",
+    )
+
+    Text("화면 테마", style = MaterialTheme.typography.titleMedium)
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (value, label) ->
+            SegmentedButton(
+                selected = mode == value,
+                onClick = { onSelect(value) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+            ) { Text(label) }
+        }
+    }
+    Text(
+        "‘시스템’은 기기 설정을 따르고, ‘라이트/다크’는 항상 그 테마로 고정합니다.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * 클라우드(Supabase) 동기화 — 멀티기기 데이터 일치(Phase 6). URL·anon key 는 비밀이 아니다(RLS 보호).
+ * 6-A 골격: 토글·접속 설정·상태 표시. 실제 push/pull 은 6-B.
+ */
+@Composable
+private fun CloudSyncSection(
+    enabled: Boolean,
+    statusText: String,
+    signedIn: Boolean,
+    busy: Boolean,
+    url: String,
+    anonKey: String,
+    onToggle: (Boolean) -> Unit,
+    onSaveConfig: (String, String) -> Unit,
+    onSignIn: (String, String) -> Unit,
+    onSignUp: (String, String) -> Unit,
+    onSignOut: () -> Unit,
+    onSyncNow: () -> Unit,
+) {
+    var urlInput by remember(url) { mutableStateOf(url) }
+    var keyInput by remember(anonKey) { mutableStateOf(anonKey) }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    Text("클라우드 동기화 (Supabase)", style = MaterialTheme.typography.titleMedium)
+    Text(
+        text = statusText,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
+        "PC·폰·태블릿의 메모/할 일을 같게 만듭니다. 같은 계정으로 로그인한 기기끼리 동기화됩니다.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("동기화 사용", style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = enabled, onCheckedChange = onToggle)
+    }
+
+    if (enabled) {
+        // 접속 설정(URL/anon key)
+        OutlinedTextField(
+            value = urlInput,
+            onValueChange = { urlInput = it },
+            label = { Text("Supabase URL (https://xxx.supabase.co)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = keyInput,
+            onValueChange = { keyInput = it },
+            label = { Text("anon key") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedButton(
+            onClick = { onSaveConfig(urlInput, keyInput) },
+            enabled = urlInput.isNotBlank() && keyInput.isNotBlank(),
+        ) { Text("접속 설정 저장") }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        if (signedIn) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onSyncNow, enabled = !busy) { Text("지금 동기화") }
+                OutlinedButton(onClick = onSignOut, enabled = !busy) { Text("로그아웃") }
+            }
+        } else {
+            // 로그인(이메일+비밀번호)
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("이메일") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("비밀번호") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { onSignIn(email, password) },
+                    enabled = !busy && email.isNotBlank() && password.isNotBlank(),
+                ) { Text("로그인") }
+                OutlinedButton(
+                    onClick = { onSignUp(email, password) },
+                    enabled = !busy && email.isNotBlank() && password.isNotBlank(),
+                ) { Text("회원가입") }
+            }
+        }
+    }
+}
+
+private fun CloudSyncState.describe(): String = when (this) {
+    CloudSyncState.Disabled -> "상태: 꺼짐"
+    CloudSyncState.NeedsConfig -> "상태: Supabase URL/anon key 입력 필요"
+    CloudSyncState.SignedOut -> "상태: 로그인 필요"
+    is CloudSyncState.SignedIn -> "상태: 로그인됨"
+    CloudSyncState.Syncing -> "상태: 동기화 중…"
+    is CloudSyncState.Synced -> "상태: 동기화 완료"
+    is CloudSyncState.Error -> "오류: $message"
+}
+
+/** OpenAI API 키 입력/삭제(Phase 4-B). 저장된 키 원문은 노출하지 않는다(보안). */
+@Composable
+private fun ApiKeySection(
+    hasKey: Boolean,
+    onSave: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    var keyInput by remember { mutableStateOf("") }
+
+    Text("AI (OpenAI)", style = MaterialTheme.typography.titleMedium)
+    Text(
+        text = if (hasKey) "상태: API 키 저장됨" else "상태: API 키 미설정",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
+        "platform.openai.com 에서 발급한 키(sk-...)를 입력하세요. 키는 기기 안전 저장소에만 보관됩니다.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    OutlinedTextField(
+        value = keyInput,
+        onValueChange = { keyInput = it },
+        label = { Text("OpenAI API 키") },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = {
+                onSave(keyInput)
+                keyInput = ""
+            },
+            enabled = keyInput.isNotBlank(),
+        ) { Text("저장") }
+        OutlinedButton(onClick = onClear, enabled = hasKey) { Text("삭제") }
     }
 }
 

@@ -2,12 +2,13 @@
 
 > 내일 이어가기 위한 인수인계 메모. 상세 명세는 [CLAUDE.md](CLAUDE.md), 빌드 절차는 [BUILD.md](BUILD.md).
 >
-> _최종 업데이트: 2026-06-30_
+> _최종 업데이트: 2026-07-01_
 
-## 현재 위치: Phase 3-B3b 완료 ✅ (앱→구글캘린더 동기화 + 토글 영속화) → 다음 후보는 아래 "다음 작업"
+## 현재 위치: 자동 동기화 ✅ + 테마/다크모드 ✅ → 다음은 폰 기기 검증(개발자) + Phase 5 갤럭시 폴리시
 
-- **앱이 Android·데스크톱 양쪽에서 빌드됨** — `:app:assembleDebug` + `:app:desktopTest` 모두 **BUILD SUCCESSFUL** (테스트 11건 통과).
-- **DB 스키마 버전 3** (v1→v2 tasks.allDay, v2→v3 settings 테이블). 마이그레이션은 데이터 보존.
+- **앱이 Android·데스크톱 양쪽에서 빌드됨** — `:app:assembleDebug` + `:app:desktopTest` 모두 **BUILD SUCCESSFUL** (테스트 20건 통과).
+- **DB 스키마 버전 4** (v1→v2 tasks.allDay, v2→v3 settings, v3→v4 ai_results 테이블). 마이그레이션은 데이터 보존.
+- **완료 기능 요약**: Phase 1(로컬 MVP)·2(캘린더 홈)·3-B(앱→구글캘린더 push)·**4-A(AI 공유)·4-B(OpenAI 요약/확장/교정)·6(Supabase 멀티기기 동기화)** 코드 완료. 최신 APK: `app/build/outputs/apk/debug/app-debug.apk`.
 - **구글 동기화 현황**: 로그인/인가(기기 확인됨) + **앱→캘린더 한 방향 push**(메모·할일, 종일/시간) 동작. **캘린더→앱 pull 은 미구현(보류)**. OAuth 클라이언트 ID·SHA-1 등록 완료(`GoogleAuthConfig.kt`). 액세스 토큰은 단기 만료 → 세션마다 로그인 1회 필요.
 - **Phase 1 완료**: 메모 CRUD + 마크다운 편집/렌더 분리 + 체크리스트 할일 + 본문 FTS 검색 + Navigation/MVVM 골격.
 - **Phase 2 완료**: **캘린더를 홈으로 승격**(startDestination=calendar). 적응형 — 창 너비 <600dp=주 아젠다 / ≥600dp=월 달력(칸 내 메모 미리보기+"+N개 더"), 두 뷰가 선택 날짜 공유. 날짜 탭 → 그날 메모·할일 조회 + 그 자리 추가(날짜 자동 주입)·삭제. 하단탭 Calendar/Memo/To-Do. 커스텀 캘린더(외부 라이브러리 미사용) + `kotlinx-datetime`.
@@ -16,13 +17,38 @@
 - **0.5-B 결과**: Room을 `commonMain`(KMP)로 이전 + **`@Fts4` 데스크톱 JVM 스모크 3건 통과**(영문·한글 토큰·소프트삭제 필터).
 - **0.5-C 결과**: **Koin DI 도입**(`databaseModule` + `expect/actual platformModule`), `initKoin()`를 Android `DayNoteApp`·Desktop `main()`에서 호출.
 
-## 다음 작업 (새 세션에서 택1)
-1. **3-B3c — 캘린더→앱 pull**(보류했던 것): "앱이 만든 항목(remoteId 있는 것)만 양방향"으로. 구글에서 그 이벤트를 수정/삭제하면 앱에 반영. 충돌은 서버 `updated` 타임스탬프 기준 last-write-wins.
-2. **무음 재로그인**: 앱 시작 시(토글 ON이면) Authorization API 무음 인가로 토큰 자동 확보 → 세션마다 로그인 안 해도 되게.
-3. **테마/다크모드**: `SettingsRepository`에 테마 설정 추가(이미 settings 테이블 있음) + Material3 다크 테마.
-4. **Phase 4 (AI 연동)** 시작: 4-A(Android Sharesheet로 ChatGPT 전송, 데스크톱은 클립보드 대체) → 4-B(Ktor로 OpenAI API). Ktor는 여기서 commonMain 도입.
+## 확정된 진행 순서 (2026-07-01)
+> AI 검색/자료수집(아래 4번)은 **"메모검색으로 마무리" 결정 → 드롭**. 기존 FTS 메모검색으로 충분, RAG/웹검색 안 만듦.
+> **순서: ① 자동 동기화 ✅ → ② 폰 기기 검증(동기화·AI 한 번에) → ③ 테마/다크모드 → ④ Phase 5 갤럭시 폴리시.**
 
-> 진행 전 권장: 기기에서 **DB v3 마이그레이션이 정상(기존 데이터 보존, 크래시 없음)** 인지 1회 확인.
+## 다음 작업 (새 세션에서 택1 — 권장 순서대로)
+1. ✅ **자동 동기화 완료(2026-07-01)**: 앱 시작 시 1회 + 로컬 메모/할일 변경 시(디바운스 2.5s) `syncNow()` 자동 호출.
+   - **설계원칙 4 유지**: 레포지토리는 동기화 존재를 모름 — `LocalChangeNotifier`(SharedFlow, `tryEmit`라 쓰기 비차단)에 "변경됨"만 발행. `AutoSyncCoordinator`가 구독→`debounce`→`cloud.syncNow()`.
+   - **배선**: `NoteRepositoryImpl`/`TaskRepositoryImpl` 모든 쓰기 후 `notifyChanged()`. `App()`에서 `koinInject<AutoSyncCoordinator>()` + `LaunchedEffect{ start(this) }`(스코프=UI 수명). Koin `repositoryModule`에 `LocalChangeNotifier`·`AutoSyncCoordinator` 등록.
+   - **중첩 방지**: `syncNow()`에 `Mutex.withLock` 추가(자동+수동 동시 실행 시 이중 push 차단). 게이팅(토글/설정/세션)은 syncNow 내부가 처리 → 코디네이터는 호출만.
+   - **루프 없음**: pull 시 원격 반영은 `noteDao.upsert` 직접 호출(레포 경유 X)이라 `notifyChanged` 안 탐. 워터마크는 SettingDao라 무관.
+   - 자산: `data/sync/{LocalChangeNotifier,AutoSyncCoordinator}.kt`. **assembleDebug + desktopTest(20건) 양쪽 BUILD SUCCESSFUL.**
+   - ⚠️ 실제 멀티기기 자동 반영은 **폰 기기 검증(2번)에서 확인**.
+2. **폰↔PC 동기화 기기 검증**: 갤럭시에 새 APK 설치 → 같은 계정 로그인 → 지금 동기화 → PC에서 쓴 메모가 폰에 뜨는지(양방향). (PC 단방향 push 는 확인됨)
+3. **Phase 4-B 기기 검증**: 갤럭시에서 OpenAI 키 입력 → AI 칩(요약/확장/교정) 실제 호출 확인. DB v3→v4 마이그레이션 보존 확인.
+4. ~~**AI 검색/자료수집**~~ **드롭(2026-07-01)**: "그냥 메모검색으로만 마무리" 결정 → RAG/웹검색 안 만듦. 기존 FTS 메모검색(Phase 1)으로 충분.
+5. ✅ **테마/다크모드 완료(2026-07-01)**: 설정에서 **시스템/라이트/다크** 선택(SegmentedButton), 즉시 영속·앱 전체 반영.
+   - `ThemeMode` enum(`domain/model`) + `SettingsRepository.observeThemeMode/setThemeMode`(settings 테이블 재사용, **새 의존성/마이그레이션 0**). 키 `theme_mode`.
+   - `App()`이 테마 관찰 → SYSTEM=`isSystemInDarkTheme()`, LIGHT/DARK=강제 → `DayNoteTheme(darkTheme=…)`. 기존 light/darkColorScheme 그대로 활용.
+   - 설정 화면 최상단 `ThemeSection`(SegmentedButton 3택). 자산: `domain/model/ThemeMode.kt`, `ui/settings/*` 수정. **assembleDebug + desktopTest(20건) 양쪽 BUILD SUCCESSFUL.**
+   - ✨ **팔레트 교체(2026-07-01, 「Quiet Cadence」 디자인)**: 기본 보라 팔레트 → 정제된 웜 모노크롬. `Color.kt`/`Theme.kt` 전면 교체(라이트/다크 풀 롤). **매핑 원칙: 슬레이트(#3A4E62)=primary(상호작용 전반), 클레이(#AA422D)=tertiary(오늘·중요·핀만 절제 사용)** — "화려함 배제" 준수. 배경=웜 본(#F0ECE3), 다크=웜 차콜(#1A1815). 디자인 자산: `design/quiet-cadence.md`(철학) + `design/quiet-cadence-*.png`/`.pdf`(3-plate 아틀라스: Time·Text·Task). assembleDebug+compileKotlinDesktop 양쪽 BUILD SUCCESSFUL.
+6. **AI 결과 이력 UI**: `ObserveAiResultsUseCase`는 배선됨 — 메모별 과거 AI 결과 목록 표시(현재 미사용).
+7. **3-B3c 캘린더→앱 pull**(보류): "앱이 만든 항목(remoteId 있는 것)만 양방향". 충돌 서버 `updated` 기준.
+8. **무음 재로그인**(구글 캘린더): 앱 시작 시(토글 ON) Authorization API 무음 인가로 토큰 자동 확보.
+9. **Phase 5 갤럭시 폴리시** (진행 중 — 작은 단위로):
+   - ✅ **5-A 마스터-디테일 2단(2026-07-01)**: Expanded(창 너비 ≥840dp — 탭 가로·폴드 펼침·PC)에서 **좌 월 달력 + 우 상세**를 `Row`로 동시 표시. 두 pane이 같은 `selectedDate` 공유(칸 탭 → 우측 상세 즉시 갱신). <840dp는 기존 1단(스택) 유지. 캘린더/상세를 `@Composable` 람다로 추출해 1단·2단이 공유(중복 0). commonMain(창 너비 기반)이라 플랫폼 API 무관 → Android·데스크톱 자동. 데스크톱 기본 창 1180×780(2단 기본 노출). `CalendarScreen.kt`·`main.kt` 수정. **assembleDebug + compileKotlinDesktop 양쪽 BUILD SUCCESSFUL.**
+   - **5-B 폴드 감지(다음)**: WindowManager(`androidx.window`) Android 전용 → `expect/actual`(데스크톱 no-op). 힌지·접힘/플렉스 자세 감지(현재 창너비 분기로 접/펼 전환은 이미 자연 동작 — 5-B는 힌지 회피·테이블탑 등 정밀 처리).
+   - ✅ **5-C1/5-C2 S펜 필기 캔버스(2026-07-01)**: Compose Canvas 자유 필기 — **commonMain 공유, 신규 의존성 0**. 마우스·손가락·S펜 공용. **필압**(S펜 pressure로 굵기 변조), **S펜 뒤집기=지우개**(`PointerType.Eraser` 자동 감지), 펜/지우개 토글·색 4종(테마색)·굵기 3단·실행취소·전체지우기. 자산: `ui/ink/{InkCanvas,InkScreen}.kt`. 네비 `Routes.INK`+`openInk()`, **에디터 상단바 "필기" 버튼**으로 진입. `awaitEachGesture`로 포인터 캡처(id 추적). **assembleDebug + compileKotlinDesktop 양쪽 BUILD SUCCESSFUL.**
+   - **5-C3 ML Kit 텍스트 변환(다음, Android 전용)**: 잉크 획 → ML Kit Digital Ink 인식 → 텍스트를 메모 본문에 반영. `expect/actual`(Android=ML Kit, Desktop=미지원/대체). 필기 영속화도 함께 검토.
+   - ⚠️ **기기 검증 권장**: 갤럭시에서 S펜 필압·뒤집기 지우개가 실제로 동작하는지(에디터→필기) 1회 확인. (CLI/데스크톱은 마우스만 검증 가능)
+10. **Phase 6 배포**: 앱 아이콘·스플래시, 데스크톱 `.exe` 정식 패키징(아래 메모), Play Console 내부 테스트.
+
+> 진행 전 권장: 기기에서 **DB v4 마이그레이션이 정상(기존 데이터 보존, 크래시 없음)** 인지 1회 확인.
 
 ### ⚠️ 방향 전환 결정 (2026-06-29)
 **PC(Windows/macOS/Linux)에서도 쓰는 "진짜 데스크톱 앱"을 목표로 확정** → **Compose Multiplatform(KMP)** 으로 전환한다. 코드 자산이 가장 적은 지금 전환(설계원칙 6, CLAUDE.md Phase 0.5). 핵심 귀결:
@@ -130,6 +156,61 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # 번들 JDK 21
 - **Claude 작업(Android 전용)**: Credential Manager(`androidx.credentials` + `googleid`)로 로그인 → 액세스 토큰 → Google Calendar API 읽기/쓰기 → Note.date/Task.dueDate ↔ 캘린더 이벤트 매핑 → 충돌(last-write-wins, **서버 타임스탬프 기준**) → 토큰/상태 저장. 토글 영속화는 DataStore(KMP) 도입 시 함께.
 - **검증**: OAuth 로그인은 CLI 빌드만으론 확인 불가 — 개발자가 실기기/에뮬레이터에서 실제 로그인 필요.
 
+## Phase 4 — 생성형 AI 연동 (ChatGPT / OpenAI 단일)
+### 4-A 메모 → AI 공유 ✅ (2026-06-30)
+- **추상화/격리**: `ui/ai/AiShare.kt`(commonMain) — `class AiShare(actionLabel, confirmMessage, share)` + `@Composable expect fun rememberAiShare()`. 플랫폼 의존을 expect/actual 뒤로(설계원칙 3·6). **새 의존성 0개.**
+- **Android**(`ui/ai/AiShare.android.kt`): `ACTION_SEND` 표준 Sharesheet(`Intent.createChooser`)로 텍스트 공유 → 사용자가 시트에서 ChatGPT 등 선택. `actionLabel="AI로 보내기"`, 확인 스낵바 없음(시트가 뜸).
+- **Desktop**(`ui/ai/AiShare.desktop.kt`): Sharesheet 없음 → AWT 클립보드 복사(`actionLabel="AI용으로 복사"`, 스낵바 "클립보드에 복사했어요…").
+- **연결**: `NoteEditorScreen` 상단바에 `aiShare.actionLabel` 버튼 추가 → 제목+본문 합쳐(`buildAiShareText`) 공유. Scaffold `snackbarHost` 추가(데스크톱 복사 확인용). 보낼 내용 없으면 "보낼 내용이 없어요." 스낵바.
+- **assembleDebug + desktopTest(11건) 양쪽 BUILD SUCCESSFUL.**
+- ⚠️ **기기 검증 권장**: Android 공유 시트가 실제로 뜨고 ChatGPT 앱이 후보에 보이는지(기기에 ChatGPT 설치 시) 1회 확인.
+
+### 4-B OpenAI REST API ✅ (2026-06-30)
+- **의존성(commonMain Ktor)**: `ktor 3.1.3`(client-core/content-negotiation/serialization-kotlinx-json) + `kotlinx-serialization-json 1.8.0` + serialization 플러그인. 엔진은 플랫폼별 — **Android=`ktor-client-okhttp`, Desktop=`ktor-client-cio`**(클래스패스 자동 선택, `HttpClient{}` 엔진 미지정). API 키 암호화용 **`androidx.security:security-crypto 1.1.0-alpha06`**(androidMain). ⚠️ **버전 함정 회피**: Ktor 3.1.3·serialization 1.8.0 모두 Kotlin 2.1.x 메타데이터 → 우리 2.1.20과 호환(Koin 4.2.2/마크다운 0.36 같은 함정 아님).
+- **데이터 계층(설계원칙 4)**: `domain/model/Ai.kt`(`AiAction` 요약/확장/교정 — systemPrompt+instruction 내장, `AiResult`). `data/remote/openai/OpenAiClient.kt`(Ktor, Chat Completions 단일, 401/429 메시지 처리). `data/repository/AiRepository.kt`(인터페이스+`AiRepositoryImpl`, **구현체 1개**, `gpt-4o-mini`) — UI는 OpenAI를 전혀 모름. 결과는 **Room `ai_results` 테이블에 저장**(진실의 원천 → 오프라인·재시작 유지).
+- **API 키 보안(하드코딩 금지)**: `data/security/ApiKeyProvider`(commonMain 인터페이스) + **Android=`EncryptedSharedPreferences`(AES256-GCM, Keystore)**, **Desktop=`~/.daynote/openai.key`(소유자 전용 권한, 평문 — 데스크톱 한계 문서화)**. `platformModule`에 각각 등록.
+- **DB v3→v4 마이그레이션**: `ai_results` 테이블 + noteId/createdAt 인덱스 추가(`MIGRATION_3_4`, 데이터 보존). AppDatabase v4 + `aiResultDao()`.
+- **화면**: `ui/ai/{AiViewModel,AiPanel}.kt` — 동작 칩(요약·확장·교정)→Loading→Success(결과 카드+"메모에 반영"/"닫기")/Error. 에디터 하단에 `AiPanel`(본문을 소스로, 결과는 본문 끝에 덧붙임). **설정 화면에 OpenAI 키 입력/삭제 섹션**(`PasswordVisualTransformation`, 원문 비노출, 저장 여부만 표시).
+- **Koin 배선**: `OpenAiClient`·`AiRepository`(repositoryModule), `RunAiActionUseCase`/`ObserveAiResultsUseCase`(useCaseModule), `aiResultDao`(databaseModule), `ApiKeyProvider`(platformModule).
+- **테스트**: `AiRepositoryTest`(desktopTest) 2건 — DAO 왕복+최신순 정렬, 키 미설정 시 안전 실패(DB 미기록). **assembleDebug + desktopTest(13건) 양쪽 BUILD SUCCESSFUL.**
+- ⚠️ **기기 검증 필요**(CLI 불가): OpenAI 키 발급(개발자) → 설정에서 입력 → 메모 에디터 AI 칩으로 실제 호출/응답 확인. DB v4 마이그레이션 보존도 1회 확인.
+
+## Android UX 수정 (2026-06-30, 기기 피드백)
+- **설정 화면 키보드 가림**: 가상 키보드가 뜨면 입력칸이 가려지던 문제 → `SettingsScreen` 스크롤 Column 에 `imePadding()` 추가(MainActivity 가 `enableEdgeToEdge` 라 Compose IME 인셋 동작). 키보드 높이만큼 스크롤 영역이 줄어 나머지 내용이 계속 보이고 스크롤 가능.
+- **캘린더 스와이프**: 이전/다음 달(월 그리드)·주(주 아젠다) 이동이 버튼으로만 됐음 → 달력 영역에 `detectHorizontalDragGestures` 추가(왼쪽 스와이프=다음, 오른쪽=이전, 임계값 56dp). 버튼도 그대로 동작. `onPrev/onNext` 로직을 `goPrev/goNext` 로 추출해 버튼·스와이프 공용. `assembleDebug + desktopTest(20건)` 양쪽 BUILD SUCCESSFUL.
+
+## Phase 6 — 동기화 & 배포 (Supabase 선택)
+> 멀티기기 데이터 일치 목표. **방식 결정(2026-06-30): Supabase** — Ktor(commonMain)라 PC·Android 동일 코드, 레코드 단위 실시간, Postgres/SQL 친화. (구글 드라이브는 Android 중심+파일단위라 제외)
+
+### 6-A 골격 ✅ (2026-06-30)
+- **추상화(설계원칙 4)**: `data/sync/CloudSyncManager`(인터페이스) + `CloudSyncState`(Disabled/NeedsConfig/Idle/Syncing/Synced/Error). 구글 캘린더(`CalendarSyncManager`/`SyncState`)와 **별개**. 본체·UI는 인터페이스만 본다.
+- **양 플랫폼 공유**: `SupabaseCloudSyncManager`(commonMain) — Ktor라 Android·Desktop 같은 코드(구글 캘린더와 달리 플랫폼 격리 불필요). Koin `appModules`(repositoryModule)에 등록 — platformModule 아님.
+- **설정 영속**: `SupabaseConfig`(url+anonKey, 비밀 아님—RLS가 보호). `SettingsRepository`에 `cloudSyncEnabled` 토글 + `supabaseConfig`(url/anon key) 추가(settings 테이블 키, **새 의존성/마이그레이션 0**).
+- **충돌 해소 순수함수**: `resolveByUpdatedAt(local,remote)` = last-write-wins(동률=로컬 유지). ⚠️ updatedAt은 클라 시계라 clock skew 취약 → 6-B에서 서버 타임스탬프 기준으로 개선 예정(CLAUDE.md §6).
+- **설정 UI**: 설정 화면에 "클라우드 동기화 (Supabase)" 섹션 — 토글 + URL/anon key 입력(영속) + 상태 + "지금 동기화". 화면이 길어져 `verticalScroll` 추가.
+- **6-A 한계(의도적)**: `syncNow()`는 토글/설정 확인까지만(설정되면 `Idle`). **실제 Auth·push/pull은 6-B.** 골격이라 아직 기기 간 데이터가 실제로 합쳐지진 않음.
+- **테스트**: `SyncConflictTest`(desktopTest) 4건 — last-write-wins 3 + config 유효성 1. **assembleDebug + desktopTest(17건) 양쪽 BUILD SUCCESSFUL.**
+
+### 6-B 실연동 ✅ 코드 완료 (2026-06-30) — 기기 검증 대기
+- **개발자 콘솔(완료)**: Supabase 프로젝트 생성 + `notes`/`tasks` 테이블 + RLS(auth.uid 기반) SQL 적용함. 인증=이메일+비밀번호.
+- **델타 동기화 방식**: syncStatus 가 캘린더(Phase 3)와 공유돼 간섭 위험 → **워터마크(updatedAt > lastSync) 델타**로 독립 구현. push 대상 = `getNotesModifiedSince`/`getTasksModifiedSince`(삭제 tombstone 포함, deletedAt 필터 없음). 워터마크는 settings `cloud_last_sync`. echo 방지: 처리한 행들의 max updatedAt 으로 전진 + 쿼리는 strict `>`.
+- **충돌**: `resolveByUpdatedAt`(last-write-wins, 동률=로컬). ⚠️ 클라 시계 기준이라 추후 서버 타임스탬프로 개선 여지(CLAUDE.md §6).
+- **자산**:
+  - `data/sync/supabase/SupabaseDtos.kt`(AuthRequest/Response, NoteRow/TaskRow snake_case @SerialName, AuthSession), `SupabaseSyncClient.kt`(Ktor: signIn/signUp/refresh + notes/tasks push(upsert `Prefer: merge-duplicates`, `on_conflict=id`)/pull(`updated_at=gt`)), `RowMappers.kt`(엔티티↔행, **pull 시 캘린더 메타 remoteId/syncStatus 보존**).
+  - `data/sync/SupabaseCloudSyncManager.kt`(commonMain, 양 플랫폼): 로그인/로그아웃/refreshState/syncNow. **401 시 refresh 토큰으로 1회 자동 갱신 후 재시도**, 실패하면 SignedOut. push→pull→워터마크 전진.
+  - `data/security/SecureStore.kt`(인터페이스) + Android(`EncryptedSharedPreferences`)/Desktop(`~/.daynote/secure.properties` 권한제한) — access/refresh/userId 토큰 저장.
+  - `CloudSyncState` 확장(SignedOut/SignedIn 추가). `SettingsRepository` 에 워터마크 get/set 추가.
+  - DAO: `getNotesModifiedSince`/`getTasksModifiedSince` + `getByIdRaw`(소프트삭제 포함 조회, 충돌 비교용).
+  - 설정 UI: 토글 ON 시 URL/anon key 입력 → "접속 설정 저장" → 이메일/비밀번호 **로그인/회원가입** → 로그인되면 "지금 동기화"/"로그아웃". `cloudBusy` 진행표시.
+  - Koin: `SupabaseSyncClient`+`CloudSyncManager`(5인자) commonMain, `SecureStore` platformModule.
+- **테스트**: `SupabaseMappingTest`(desktopTest) 3건 — push/pull 라운드트립, pull 신규=remoteId 없음, 삭제 tombstone 전파. **assembleDebug + desktopTest(20건) 양쪽 BUILD SUCCESSFUL.**
+- ⚠️ **한계/후속**: (1) **자동 동기화 아직 없음** — 앱 시작/변경 시 자동 호출은 미구현, 현재는 설정에서 "지금 동기화" 또는 로그인 시 1회. (2) 실제 다중기기 동기화는 **개발자가 두 기기에서 확인** 필요(CLI 불가). (3) 액세스 토큰 만료는 refresh 로 자동 처리(refresh 토큰까지 만료면 재로그인).
+- **검증 절차**: ① PC DayNote 설정 → 동기화 ON → URL/anon key 입력 → 접속 설정 저장 → 회원가입(또는 로그인) → 지금 동기화. ② 갤럭시 APK 동일 계정 로그인 → 지금 동기화 → 메모가 양쪽에 보이는지 확인.
+- ✅ **PC 동작 확인(2026-06-30)**: 데스크톱에서 로그인 + "지금 동기화" → **"동기화 완료"** 확인(Supabase notes 테이블에 push 성공). 폰↔PC 양방향은 갤럭시 APK 설치 후 확인 예정.
+- 🐞 **런타임 수정(2026-06-30, 기기 테스트에서 발견)**:
+  - **URL 정규화**: 사용자가 Supabase URL에 `/rest/v1/`까지 붙여 넣어 `PGRST125 Invalid path`(404) 발생 → `SupabaseSyncClient.base()`가 끝의 `/rest/v1`·`/auth/v1`를 자동 제거하도록 보완.
+  - **encodeDefaults**: 일괄 upsert 시 기본값(null/false) 필드가 생략돼 객체마다 키가 달라 `PGRST102 All object keys must match`(400) 발생 → 클라이언트 Json에 `encodeDefaults=true`+`explicitNulls=true` 설정해 모든 행의 키 집합 통일.
+
 ## 데스크톱 실행파일(.exe) 빌드 — 메모
 - **빌드/실행 분리**: `:app:run`·`assembleDebug`·`desktopTest`는 JBR로 OK. 하지만 **배포물(`createDistributable`/`packageMsi`)은 `jpackage` 필요** → JBR엔 없음.
 - 이 PC엔 **Eclipse Adoptium JDK 25**(`C:\Users\admin\AppData\Local\Programs\Eclipse Adoptium\jdk-25.0.3.9-hotspot`) 설치됨. Gradle 8.11.1은 JDK 25 전체 실행이 불안정하므로 **빌드는 JBR, jpackage만 JDK 25**로 분리.
@@ -137,13 +218,19 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # 번들 JDK 21
 - 명령: `$env:JAVA_HOME=JBR; .\gradlew.bat :app:createDistributable "-Pdaynote.jpackage.jdk=<JDK25경로>"` → 산출물 `app\build\compose\binaries\main\app\DayNote\DayNote.exe`(번들 JRE, 129MB).
 - ⚠️ 재패키징 전 **실행 중인 DayNote.exe 종료** 필요(폴더 잠금).
 
-## 재개 명령 예시 (내일 이걸로 시작)
+## 재개 명령 예시 (다음 세션에서 이걸로 시작)
 
 ```
 PROGRESS.md 읽고 이어서 진행해줘.
-현재: Phase 1·2 완료. Phase 3 동기화는 앱→구글캘린더 한 방향(메모·할일, 종일/시간) + 토글 영속화까지 됨.
-위 "다음 작업" 후보 중 하나를 진행: ① pull(앱이 만든 항목만 양방향) ② 무음 재로그인
-③ 테마/다크모드 ④ Phase 4 AI 연동. 무엇부터 할지 먼저 물어보고 시작해줘.
-빌드: $env:JAVA_HOME=JBR 로 :app:assembleDebug + :app:desktopTest.
+현재: Phase 1·2·3-B(앱→구글캘린더 push)·4-A/4-B(AI 공유+OpenAI 요약/확장/교정)·
+6(Supabase 멀티기기 동기화) 코드 완료. PC에서 Supabase 동기화 동작 확인됨(폰 검증은 남음).
+위 "다음 작업" 중 하나를 진행(권장 1번=자동 동기화). 무엇부터 할지 먼저 물어보고 시작해줘.
+빌드: $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr" 로
+     :app:assembleDebug + :app:desktopTest (현재 테스트 20건).
+데스크톱 실행(GUI 확인): :app:run  (창 닫으면 종료).
 .exe: createDistributable "-Pdaynote.jpackage.jdk=<JDK25경로>" (실행 중인 DayNote.exe 먼저 종료).
 ```
+
+### 확정된 우선순위 (2026-07-01)
+- **AI 검색/자료수집**: 드롭 — "메모검색으로 마무리"(기존 FTS로 충분). (다음 작업 4번 참조)
+- **순서**: ① 자동 동기화 ✅ → ② 폰 기기 검증(동기화·AI 한 번에, **개발자 실기기**) → ③ 테마/다크모드 ✅ → ④ Phase 5 → 배포.

@@ -25,6 +25,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.kangtaeyoung.daynote.ui.calendar.CalendarScreen
 import com.kangtaeyoung.daynote.ui.components.TopDestination
+import com.kangtaeyoung.daynote.ui.ink.InkScreen
 import com.kangtaeyoung.daynote.ui.notes.NoteEditorScreen
 import com.kangtaeyoung.daynote.ui.notes.NotesListScreen
 import com.kangtaeyoung.daynote.ui.search.SearchScreen
@@ -38,6 +39,7 @@ object Routes {
     const val SEARCH = "search"
     const val EDITOR = "editor"
     const val SETTINGS = "settings"
+    const val INK = "ink"
 }
 
 /** 에디터 진입 스냅샷(forward 복원용). */
@@ -83,6 +85,11 @@ class AppNavigator(val navController: NavHostController) {
     fun openSettings() {
         forwardStack.clear()
         navController.navigate(Routes.SETTINGS)
+    }
+
+    fun openInk() {
+        forwardStack.clear()
+        navController.navigate(Routes.INK)
     }
 
     fun selectTab(dest: TopDestination) {
@@ -168,6 +175,7 @@ fun DayNoteNavHost() {
                     noteId = navigator.editorNoteId,
                     initialDate = navigator.editorInitialDate,
                     onBack = { navigator.goBack() },
+                    onOpenInk = { navigator.openInk() },
                 )
             }
             composable(Routes.SEARCH) {
@@ -178,6 +186,9 @@ fun DayNoteNavHost() {
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(onBack = { navigator.goBack() })
+            }
+            composable(Routes.INK) {
+                InkScreen(onBack = { navigator.goBack() })
             }
         }
     }

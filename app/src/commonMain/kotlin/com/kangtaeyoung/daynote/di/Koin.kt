@@ -2,12 +2,22 @@ package com.kangtaeyoung.daynote.di
 
 import com.kangtaeyoung.daynote.data.local.AppDatabase
 import com.kangtaeyoung.daynote.data.local.buildDatabase
+import com.kangtaeyoung.daynote.data.remote.openai.OpenAiClient
+import com.kangtaeyoung.daynote.data.repository.AiRepository
+import com.kangtaeyoung.daynote.data.repository.AiRepositoryImpl
 import com.kangtaeyoung.daynote.data.repository.NoteRepository
 import com.kangtaeyoung.daynote.data.repository.NoteRepositoryImpl
 import com.kangtaeyoung.daynote.data.repository.SettingsRepository
 import com.kangtaeyoung.daynote.data.repository.SettingsRepositoryImpl
 import com.kangtaeyoung.daynote.data.repository.TaskRepository
 import com.kangtaeyoung.daynote.data.repository.TaskRepositoryImpl
+import com.kangtaeyoung.daynote.data.sync.AutoSyncCoordinator
+import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
+import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
+import com.kangtaeyoung.daynote.data.sync.SupabaseCloudSyncManager
+import com.kangtaeyoung.daynote.data.sync.supabase.SupabaseSyncClient
+import com.kangtaeyoung.daynote.domain.usecase.ObserveAiResultsUseCase
+import com.kangtaeyoung.daynote.domain.usecase.RunAiActionUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
@@ -44,13 +54,24 @@ val databaseModule: Module = module {
     single { get<AppDatabase>().noteDao() }
     single { get<AppDatabase>().taskDao() }
     single { get<AppDatabase>().settingDao() }
+    single { get<AppDatabase>().aiResultDao() }
 }
 
 /** Repository 계층(설계원칙 4). DAO 를 주입받아 도메인 모델을 제공한다. */
 val repositoryModule: Module = module {
-    single<NoteRepository> { NoteRepositoryImpl(get()) }
-    single<TaskRepository> { TaskRepositoryImpl(get()) }
+    // 로컬 변경 신호(자동 동기화 트리거) — 레포지토리가 발행, 코디네이터가 구독.
+    single { LocalChangeNotifier() }
+    single<NoteRepository> { NoteRepositoryImpl(get(), get()) }
+    single<TaskRepository> { TaskRepositoryImpl(get(), get()) }
     single<SettingsRepository> { SettingsRepositoryImpl(get()) }
+    // AI(Phase 4-B): OpenAI 단일. ApiKeyProvider 는 platformModule 이 제공.
+    single { OpenAiClient() }
+    single<AiRepository> { AiRepositoryImpl(get(), get(), get()) }
+    // 클라우드 동기화(Phase 6, Supabase) — Ktor 라 양 플랫폼 공유. SecureStore 는 platformModule 제공.
+    single { SupabaseSyncClient() }
+    single<CloudSyncManager> { SupabaseCloudSyncManager(get(), get(), get(), get(), get()) }
+    // 자동 동기화 조율(앱 시작 + 변경 디바운스) — App() 에서 start.
+    single { AutoSyncCoordinator(get(), get(), get()) }
 }
 
 /** UseCase 계층. 상태 없는 얇은 래퍼라 factory 로 등록한다. */
@@ -70,6 +91,8 @@ val useCaseModule: Module = module {
     factory { AddTaskUseCase(get()) }
     factory { ToggleTaskUseCase(get()) }
     factory { DeleteTaskUseCase(get()) }
+    factory { RunAiActionUseCase(get()) }
+    factory { ObserveAiResultsUseCase(get()) }
 }
 
 /** 앱 전체 모듈 묶음(플랫폼 모듈 제외 — 그건 initKoin 이 따로 붙인다). */

@@ -22,8 +22,9 @@ class RepositoryTest {
     private val db: AppDatabase = buildDatabase(
         Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath),
     )
-    private val notes = NoteRepositoryImpl(db.noteDao())
-    private val tasks = TaskRepositoryImpl(db.taskDao())
+    private val changes = com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier()
+    private val notes = NoteRepositoryImpl(db.noteDao(), changes)
+    private val tasks = TaskRepositoryImpl(db.taskDao(), changes)
 
     @AfterTest
     fun tearDown() {

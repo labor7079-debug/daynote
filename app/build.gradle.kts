@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
 
@@ -42,6 +43,11 @@ kotlin {
             implementation(libs.jetbrains.navigation.compose)
             implementation(libs.markdown.renderer)
             implementation(libs.markdown.renderer.m3)
+            // --- Ktor (멀티플랫폼 HTTP) + serialization — Phase 4-B OpenAI 호출 ---
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.kotlinx.serialization.json)
         }
 
         androidMain.dependencies {
@@ -52,12 +58,17 @@ kotlin {
             implementation(libs.kotlinx.coroutines.android)
             // 구글 인가(Authorization API) — 캘린더 액세스 토큰 (Phase 3)
             implementation(libs.play.services.auth)
+            // Ktor 엔진(Android) + API 키 암호화 저장
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.androidx.security.crypto)
         }
 
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             // 데스크톱(Swing/AWT)용 Dispatchers.Main — viewModelScope 가 필요로 함
             implementation(libs.kotlinx.coroutines.swing)
+            // Ktor 엔진(Desktop JVM)
+            implementation(libs.ktor.client.cio)
         }
 
         desktopTest.dependencies {

@@ -4,6 +4,7 @@ import com.kangtaeyoung.daynote.core.nowMillis
 import com.kangtaeyoung.daynote.core.randomUuid
 import com.kangtaeyoung.daynote.data.local.dao.TaskDao
 import com.kangtaeyoung.daynote.data.local.entity.SyncStatus
+import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
 import com.kangtaeyoung.daynote.domain.model.Task
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.map
  */
 class TaskRepositoryImpl(
     private val dao: TaskDao,
+    private val changes: LocalChangeNotifier,
 ) : TaskRepository {
 
     override fun observeTasksForNote(noteId: String): Flow<List<Task>> =
@@ -40,6 +42,7 @@ class TaskRepositoryImpl(
             updatedAt = now,
         )
         dao.upsert(task.toEntity())
+        changes.notifyChanged()
         return task
     }
 
@@ -57,11 +60,21 @@ class TaskRepositoryImpl(
                 syncStatus = SyncStatus.PENDING,
             ),
         )
+        changes.notifyChanged()
     }
 
-    override suspend fun toggleDone(id: String) = dao.toggleDone(id, nowMillis())
+    override suspend fun toggleDone(id: String) {
+        dao.toggleDone(id, nowMillis())
+        changes.notifyChanged()
+    }
 
-    override suspend fun deleteTask(id: String) = dao.softDelete(id, nowMillis())
+    override suspend fun deleteTask(id: String) {
+        dao.softDelete(id, nowMillis())
+        changes.notifyChanged()
+    }
 
-    override suspend fun restoreTask(id: String) = dao.restore(id, nowMillis())
+    override suspend fun restoreTask(id: String) {
+        dao.restore(id, nowMillis())
+        changes.notifyChanged()
+    }
 }

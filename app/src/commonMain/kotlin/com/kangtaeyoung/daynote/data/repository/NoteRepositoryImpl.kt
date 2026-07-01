@@ -4,6 +4,7 @@ import com.kangtaeyoung.daynote.core.nowMillis
 import com.kangtaeyoung.daynote.core.randomUuid
 import com.kangtaeyoung.daynote.data.local.dao.NoteDao
 import com.kangtaeyoung.daynote.data.local.entity.SyncStatus
+import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
 import com.kangtaeyoung.daynote.domain.model.Note
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.map
  */
 class NoteRepositoryImpl(
     private val dao: NoteDao,
+    private val changes: LocalChangeNotifier,
 ) : NoteRepository {
 
     override fun observeNotes(): Flow<List<Note>> =
@@ -43,6 +45,7 @@ class NoteRepositoryImpl(
             updatedAt = now,
         )
         dao.upsert(note.toEntity())
+        changes.notifyChanged()
         return note
     }
 
@@ -60,16 +63,24 @@ class NoteRepositoryImpl(
                 syncStatus = SyncStatus.PENDING,
             ),
         )
+        changes.notifyChanged()
     }
 
     override suspend fun setPinned(id: String, pinned: Boolean) {
         val current = dao.getById(id) ?: return
         dao.upsert(current.copy(isPinned = pinned, updatedAt = nowMillis()))
+        changes.notifyChanged()
     }
 
-    override suspend fun deleteNote(id: String) = dao.softDelete(id, nowMillis())
+    override suspend fun deleteNote(id: String) {
+        dao.softDelete(id, nowMillis())
+        changes.notifyChanged()
+    }
 
-    override suspend fun restoreNote(id: String) = dao.restore(id, nowMillis())
+    override suspend fun restoreNote(id: String) {
+        dao.restore(id, nowMillis())
+        changes.notifyChanged()
+    }
 
     override fun search(query: String): Flow<List<Note>> {
         val match = toFtsMatch(query) ?: return flowOf(emptyList())

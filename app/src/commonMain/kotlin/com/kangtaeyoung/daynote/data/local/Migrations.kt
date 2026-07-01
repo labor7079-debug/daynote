@@ -22,3 +22,21 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         )
     }
 }
+
+/** v3 → v4: AI 결과 테이블 추가(Phase 4-B). noteId·createdAt 인덱스 포함. */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ai_results` (" +
+                "`id` TEXT NOT NULL, `noteId` TEXT, `action` TEXT NOT NULL, " +
+                "`sourceText` TEXT NOT NULL, `resultText` TEXT NOT NULL, " +
+                "`model` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ai_results_noteId` ON `ai_results` (`noteId`)",
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ai_results_createdAt` ON `ai_results` (`createdAt`)",
+        )
+    }
+}

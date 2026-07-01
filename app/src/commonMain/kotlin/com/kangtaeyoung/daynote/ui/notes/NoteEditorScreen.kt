@@ -19,6 +19,8 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -27,11 +29,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kangtaeyoung.daynote.ui.ai.AiPanel
+import com.kangtaeyoung.daynote.ui.ai.rememberAiShare
+import kotlinx.coroutines.launch
 import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
@@ -50,6 +56,7 @@ fun NoteEditorScreen(
     noteId: String?,
     initialDate: Long? = null,
     onBack: () -> Unit,
+    onOpenInk: () -> Unit = {},
 ) {
     val observeNote = koinInject<ObserveNoteUseCase>()
     val addNote = koinInject<AddNoteUseCase>()
@@ -75,9 +82,15 @@ fun NoteEditorScreen(
         )
     }
     val tasks by vm.tasks.collectAsState()
+    val savedNoteId by vm.savedId.collectAsState()
     var preview by remember { mutableStateOf(false) }
 
+    val aiShare = rememberAiShare()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(if (noteId == null) "새 메모" else "메모") },
@@ -85,6 +98,20 @@ fun NoteEditorScreen(
                     TextButton(onClick = onBack) { Text("뒤로") }
                 },
                 actions = {
+                    TextButton(
+                        onClick = {
+                            val text = buildAiShareText(vm.title, vm.content)
+                            if (text.isBlank()) {
+                                scope.launch { snackbarHostState.showSnackbar("보낼 내용이 없어요.") }
+                            } else {
+                                aiShare.share(text)
+                                if (aiShare.confirmMessage.isNotBlank()) {
+                                    scope.launch { snackbarHostState.showSnackbar(aiShare.confirmMessage) }
+                                }
+                            }
+                        },
+                    ) { Text(aiShare.actionLabel) }
+                    TextButton(onClick = onOpenInk) { Text("필기") }
                     TextButton(onClick = { preview = !preview }) {
                         Text(if (preview) "편집" else "미리보기")
                     }
@@ -154,7 +181,29 @@ fun NoteEditorScreen(
                 )
             }
             TaskInput(onAdd = vm::addNewTask)
+
+            HorizontalDivider()
+
+            // Phase 4-B: OpenAI 요약·확장·교정. 본문을 소스로, 결과는 본문 끝에 덧붙인다.
+            AiPanel(
+                sourceText = buildAiShareText(vm.title, vm.content),
+                noteId = savedNoteId,
+                onApplyToNote = { result ->
+                    val merged = if (vm.content.isBlank()) result else "${vm.content}\n\n$result"
+                    vm.onContentChange(merged)
+                },
+            )
         }
+    }
+}
+
+/** 제목과 본문을 AI 로 보낼 한 덩어리 텍스트로 합친다. 둘 다 비면 빈 문자열. */
+private fun buildAiShareText(title: String, content: String): String {
+    val t = title.trim()
+    val c = content.trim()
+    return when {
+        t.isNotEmpty() && c.isNotEmpty() -> "$t\n\n$c"
+        else -> t.ifEmpty { c }
     }
 }
 
