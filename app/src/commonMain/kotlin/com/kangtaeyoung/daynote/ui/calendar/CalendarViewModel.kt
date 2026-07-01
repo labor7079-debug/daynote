@@ -54,6 +54,13 @@ class CalendarViewModel(
         .map { notes -> notes.groupBy { it.date?.toLocalDate() ?: it.createdAt.toLocalDate() } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
+    /** 보이는 범위의 할 일을 날짜별로 묶은 맵 — 달력 칸 밀도 점(할일) 표시용. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val tasksByDate: StateFlow<Map<LocalDate, List<Task>>> = visibleRange
+        .flatMapLatest { (start, end) -> observeTasksByDate(start, end) }
+        .map { tasks -> tasks.groupBy { (it.dueDate ?: it.createdAt).toLocalDate() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val notesForSelected: StateFlow<List<Note>> = _selectedDate
         .flatMapLatest { date -> val (s, e) = date.dayRange(); observeNotesByDate(s, e) }

@@ -4,12 +4,38 @@
 >
 > _최종 업데이트: 2026-07-01_
 
-## 현재 위치: Phase 5-A/5-C + 기기 피드백 수정 완료 → 갤럭시탭/폴드7 재검증 대기
+## 현재 위치: 기기 재검증 통과 ✅ + AI 제목 자동생성(4-C) + 「Warm Journal」 재설계(캘린더·상세·에디터) + 앱 아이콘「리본 저널」 코드 완료 → 다음: 배포(아이콘 실기기 확인·.exe 아이콘·스플래시·Play Console) 또는 하단탭 톤
 
-- **이번 세션 요약(2026-07-01)**: 자동 동기화·테마/다크모드·「Quiet Cadence」 팔레트/디자인 자산·Phase 5-A(2단)·5-C1/2(S펜 필기 캔버스) 완료 후, **갤럭시탭·폴드7 기기 피드백 1차 수정**까지.
+### 🎨 캘린더 재설계 「Warm Journal」(방향 B) 적용 ✅ (2026-07-01)
+- **결정**: 두 제안(A 아틀라스 도판 / B 따뜻한 다이어리) 중 **방향 B 채택** — 부드러운 라운드 타일 + 밀도 점 + 제목 텍스트 유지. (사용자 확인: "제목 미리보기는 유지" → 점+글자 병행안으로 착수.)
+- **월 달력(`DayCell`)**: 라운드 13dp 웜 타일(주말=secondaryContainer 틴트, 이번달 밖=투명). 상단에 **날짜 + 밀도 점**(중요=tertiary·할일=primary·메모=빈 원, 최대 4), 그 아래 **메모 제목 최대 2줄**(핀=SemiBold onSurface) + "+N개 더". **오늘=슬레이트 원**(primary 배경), 선택=primaryContainer+primary 테두리, 일요일 숫자=tertiary.
+- **주 아젠다(`WeekAgenda`)**: 같은 웜 타일·오늘 원·주말 틴트·일요일 클레이. 제목 3줄 유지 + "할 일 N개" + 우측 밀도 점.
+- **헤더**: 세리프 월 제목(`FontFamily.Serif`) + **클레이 스와시 밑줄**, 이모지 ◀▶ → 얇은 `‹ 오늘 ›`.
+- **데이터**: 점의 "할일"을 위해 `CalendarViewModel.tasksByDate`(visibleRange 기반) 추가 → `MonthGrid`/`WeekAgenda`로 전달. 새 의존성 0, **원생 hex 0**(전부 `MaterialTheme.colorScheme` 롤), 라이트/다크 자동.
+- **자산**: `ui/calendar/{CalendarScreen,CalendarViewModel}.kt`. 신규 private 컴포저블 `DayNumber`/`DensityDots`/`Dot`(+`DotKind`). **assembleDebug + compileKotlinDesktop + desktopTest(22건) 모두 BUILD SUCCESSFUL.**
+- ⚠️ **기기 시각 검증 권장**(CLI는 컴파일까지만): 폴드/탭에서 웜 타일·오늘 원·점+제목·다크모드 색 실제 확인.
+
+### 🎨 상세·에디터 톤 확장 + 앱 아이콘 ✅ (2026-07-01)
+- **상세(`DayDetail`)**: 날짜 헤더 **세리프 + 클레이 스와시**(캘린더 헤더와 통일). 섹션 라벨 `MEMO`/`TO-DO`를 **자간 넓힌 클리니컬 캡션**(`SectionLabel`, letterSpacing 2sp). 메모는 **웜 라운드 타일**(`NoteDetailRow`, 핀=굵게). 삭제 `TextButton("삭제")` → **절제된 ✕**(`DeleteX`, onSurfaceVariant).
+- **공유 `TaskRow`**: 삭제 "삭제" → **✕**(상세·에디터·To-Do 탭 전부 반영). 체크박스는 기존 primary(슬레이트).
+- **에디터(`NoteEditorScreen`)**: 상단바 제목 **세리프**, "할 일" → `TO-DO` 캡션 톤.
+- **🖼 앱 실행 아이콘 「리본 저널」(컨셉 A) 적용**: 그동안 매니페스트에 `android:icon` 부재 → **기본 안드로이드 아이콘**이 떴음. **Android 적응형 아이콘** 신설(벡터, **새 의존성 0**): `res/drawable/ic_launcher_foreground.xml`(노트 페이지+슬레이트 선+클레이 북마크), `ic_launcher_monochrome.xml`(테마 아이콘), `mipmap-anydpi-v26/ic_launcher(.round).xml`, `values/colors.xml`(배경=웜 본 #F0ECE3). 매니페스트에 `android:icon`/`roundIcon` 추가. minSdk 26이라 적응형만으로 충분(레거시 PNG 불필요). **데스크톱**: 공용 `ui/theme/DayNoteLogo.kt`(ImageVector, 같은 형상) → `main.kt` `Window(icon=…)` 창/작업표시줄 아이콘.
+- **자산**: `ui/calendar/CalendarScreen.kt`·`ui/components/TaskRow.kt`·`ui/notes/NoteEditorScreen.kt`·`ui/theme/DayNoteLogo.kt`·`androidMain/res/**`·`androidMain/AndroidManifest.xml`·`desktopMain/.../main.kt`. **assembleDebug + compileKotlinDesktop + desktopTest(22건) 모두 BUILD SUCCESSFUL.**
+- ⚠️ **후속/미완**: (1) 데스크톱 **.exe 파일 아이콘**은 `nativeDistributions.windows.iconFile`(.ico) 별도 필요 — 창 아이콘만 적용됨. (2) 기기에서 런처 아이콘·다크 테마 아이콘 실제 확인 권장. (3) 하단탭(`DayNoteBottomBar`)은 아직 텍스트-이모지 아이콘 — 후속 톤 확장 여지.
+
+- **이번 세션 요약(2026-07-01)**: 자동 동기화·테마/다크모드·「Quiet Cadence」 팔레트/디자인 자산·Phase 5-A(2단)·5-C1/2(S펜 필기 캔버스) 완료 후, **갤럭시탭·폴드7 기기 피드백 1차 수정** → **개발자 실기기 재검증 전부 정상 확인**.
 - **기기 확인됨**: 테마 전환/유지 ✓, 색감 ✓, 수동 동기화 ✓, Phase 4(공유·요약/확장/교정) ✓, 구글캘린더 생성 ✓.
-- **이번에 고친 것**(아래 "기기 피드백 1차 수정" 참조): 🐞월 달력 겹침(MonthGrid Column 누락) · ✨스와이프 슬라이드 · ✨빈날짜 탭→메모 · 🐞에디터 커서(focusProperties) · ✨AI 자유질문 인라인.
-- **재검증 대기(개발자 실기기, 새 APK)**: ① 월 달력이 7열 그리드로 뜨는지(폴드 단일/탭 2단) ② 에디터 커서 위/아래 정상 ③ AI 자유질문 인라인 ④ 폰↔PC 자동 동기화 양방향 ⑤ S펜 필압/뒤집기.
+- **이번에 고친 것**(아래 "기기 피드백 1차 수정" 참조): 🐞월 달력 겹침(MonthGrid Column 누락) · ✨스와이프 슬라이드 · ✨빈날짜 탭→메모 · 🐞에디터 커서(focusProperties) · ✨AI 자유질문 인라인. **모두 `88ba0a7`에 커밋됨.**
+- ✅ **재검증 전부 통과(2026-07-01, 개발자 실기기)**: ① 월 달력 7열 그리드(폴드 단일/탭 2단) ✓ ② 에디터 커서 위/아래 ✓ ③ AI 자유질문 인라인 ✓ ④ 폰↔PC 자동 동기화 양방향 ✓ ⑤ S펜 필압/뒤집기 ✓. → **더 이상 대기 항목 없음.**
+
+### 🎨 방향 A「Quiet Cadence 도판」 UI 재설계안 (제안됨, **미채택** — 캘린더는 방향 B 선택. 참고 보관)
+> 정밀·클리니컬 대안. `Type.kt` 타이포 스펙은 방향과 무관하게 유효 → 나중에 적용 여지. 넓은 PC 월 달력에 부분 채용도 고려 가능.
+> 포스터/철학(`design/quiet-cadence*`)은 완성됐으나 **(재설계 전) `CalendarScreen.kt`는 평범한 Material3**(라운드 8dp 셀·`primaryContainer` 채움 선택·이모지 화살표). 포스터의 "과학 아틀라스 도판" 언어를 앱으로 번역하는 게 가장 임팩트 큰 작업. **새 의존성 0, `MaterialTheme.colorScheme` 롤만 사용(원생 hex 금지).**
+- **핵심 이동**: 라운드 셀→**헤어라인 사각 격자**(FaintLine 1px) · 선택=채움→**슬레이트 1px 아웃라인**(+5% 틴트) · 오늘=볼드숫자→**슬레이트 원 마커** · 메모 미리보기 텍스트→**클레이 엔트리 tick-line**(탭 시 제목 노출) · **열01–07/행01–06 좌표 눈금** + 요일(일요일만 클레이) · 헤더=**세리프 "7월" + 모노 캡션 + 코너 등록 눈금** · 하단 **범례(— ENTRY ○ TODAY · VACANT)**.
+- **2번째 지렛대 — 타이포**: `Type.kt`가 **아직 placeholder**. 디스플레이=세리프(월제목·날짜헤더), 클리니컬 라벨=모노 `letterSpacing 0.18~0.22em`(요일·좌표·범례·시각), 본문=현 sans+여유 lineHeight. **이게 아틀라스 질감의 절반.**
+- **확장**: DayDetail(삭제 텍스트→아이콘·헤어라인 구분), 에디터 상단바 규칙선화·편집/미리보기 모노 세그먼트, 다크는 격자=DarkOutlineVariant·엔트리선=DarkTertiary(#D98366, 팔레트에 이미 있음).
+- **변경 파일(예상)**: `ui/theme/Type.kt` + `ui/calendar/CalendarScreen.kt`(DayCell/MonthGrid/CalendarHeader) 중심.
+- **착수 시**: 라이트·다크 양쪽 + assembleDebug/desktopTest 양쪽 빌드 확인.
 
 - **앱이 Android·데스크톱 양쪽에서 빌드됨** — `:app:assembleDebug` + `:app:desktopTest` 모두 **BUILD SUCCESSFUL** (테스트 20건 통과).
 - **DB 스키마 버전 4** (v1→v2 tasks.allDay, v2→v3 settings, v3→v4 ai_results 테이블). 마이그레이션은 데이터 보존.
@@ -177,6 +203,13 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # 번들 JDK 21
 - **연결**: `NoteEditorScreen` 상단바에 `aiShare.actionLabel` 버튼 추가 → 제목+본문 합쳐(`buildAiShareText`) 공유. Scaffold `snackbarHost` 추가(데스크톱 복사 확인용). 보낼 내용 없으면 "보낼 내용이 없어요." 스낵바.
 - **assembleDebug + desktopTest(11건) 양쪽 BUILD SUCCESSFUL.**
 - ⚠️ **기기 검증 권장**: Android 공유 시트가 실제로 뜨고 ChatGPT 앱이 후보에 보이는지(기기에 ChatGPT 설치 시) 1회 확인.
+
+### 4-C AI 제목 자동생성 ✅ (2026-07-01)
+- **동작**: 메모 본문을 근거로 짧은 제목(18자 내외)을 OpenAI 로 생성. **트리거 2가지**: ① 에디터 제목칸 옆 **✨ 제목 버튼**(본문 있을 때 활성, 토글 무관 항상 사용 가능) ② **설정 "제목 자동생성" 토글**(기본 꺼짐) — 켜면 제목 비운 채 저장 시 자동 생성.
+- **오프라인 폴백**: 키 없음·호출 실패·오프라인이면 **본문 첫 줄**(마크다운 앞머리 기호 `#·-·*·>` 제거, 40자 컷)을 제목으로. → 오프라인에서도 버튼이 쓸모 있음(설계원칙 2).
+- **설계원칙 4 준수**: 기존 AI 인프라 재사용, **새 의존성 0 · DB 스키마 변경 0**. `AiRepository.suggestTitle(text): Result<String>` 추가 — 응답을 한 줄로 정제(따옴표/마침표/줄바꿈 제거)하고 **`ai_results`에 저장 안 함**(제목은 필드 채우기지 이력 결과가 아님 → DB 오염 0). `AiAction.TITLE`(칩 제외), `SuggestTitleUseCase`, `NoteEditorViewModel.suggestTitleNow()`/`maybeAutoTitle()`(저장 시), `SettingsRepository.observeAutoTitle/setAutoTitle`(settings 테이블 키 `auto_title`, 마이그레이션 0).
+- **자산**: `domain/model/Ai.kt`·`data/repository/AiRepository.kt`·`domain/usecase/AiUseCases.kt`·`data/repository/SettingsRepository.kt`·`di/Koin.kt`·`ui/notes/{NoteEditorViewModel,NoteEditorScreen}.kt`·`ui/settings/{SettingsViewModel,SettingsScreen}.kt`. 테스트 `AiRepositoryTest` +2건(무-키·빈내용 안전 실패). **assembleDebug + desktopTest(22건) 양쪽 BUILD SUCCESSFUL.**
+- ⚠️ **기기 검증 권장**(CLI 불가): 키 입력 후 실제 제목 생성 품질 1회 확인 + 키 없이 ✨ 눌러 본문 첫 줄 폴백 확인.
 
 ### 4-B OpenAI REST API ✅ (2026-06-30)
 - **의존성(commonMain Ktor)**: `ktor 3.1.3`(client-core/content-negotiation/serialization-kotlinx-json) + `kotlinx-serialization-json 1.8.0` + serialization 플러그인. 엔진은 플랫폼별 — **Android=`ktor-client-okhttp`, Desktop=`ktor-client-cio`**(클래스패스 자동 선택, `HttpClient{}` 엔진 미지정). API 키 암호화용 **`androidx.security:security-crypto 1.1.0-alpha06`**(androidMain). ⚠️ **버전 함정 회피**: Ktor 3.1.3·serialization 1.8.0 모두 Kotlin 2.1.x 메타데이터 → 우리 2.1.20과 호환(Koin 4.2.2/마크다운 0.36 같은 함정 아님).

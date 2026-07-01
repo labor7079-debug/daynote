@@ -8,17 +8,21 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
@@ -47,12 +51,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kangtaeyoung.daynote.core.firstOfMonthPlusMonths
 import com.kangtaeyoung.daynote.core.monthGridDays
 import com.kangtaeyoung.daynote.core.startOfDayMillis
@@ -104,6 +112,7 @@ fun CalendarScreen(
 
     val selectedDate by vm.selectedDate.collectAsState()
     val notesByDate by vm.notesByDate.collectAsState()
+    val tasksByDate by vm.tasksByDate.collectAsState()
     val notesForSelected by vm.notesForSelected.collectAsState()
     val tasksForSelected by vm.tasksForSelected.collectAsState()
 
@@ -173,9 +182,9 @@ fun CalendarScreen(
                     ) { a ->
                         val days = if (compact) a.weekDays() else monthGridDays(a)
                         if (compact) {
-                            WeekAgenda(days, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                            WeekAgenda(days, selectedDate, notesByDate, tasksByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
                         } else {
-                            MonthGrid(a, days, selectedDate, notesByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                            MonthGrid(a, days, selectedDate, notesByDate, tasksByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
                         }
                     }
                 }
@@ -221,17 +230,34 @@ fun CalendarScreen(
 
 @Composable
 private fun CalendarHeader(label: String, onPrev: () -> Unit, onNext: () -> Unit, onToday: () -> Unit) {
+    // 「Warm Journal」 헤더 — 세리프 월 제목 + 클레이 스와시 밑줄(절제된 강조). 좌우 얇은 네비.
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        TextButton(onClick = onPrev) { Text("◀") }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = onToday) { Text("오늘") }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.headlineSmall,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(6.dp))
+            Box(
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.tertiary), // 클레이 스와시
+            )
         }
-        TextButton(onClick = onNext) { Text("▶") }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onPrev) { Text("‹", style = MaterialTheme.typography.titleLarge) }
+            TextButton(onClick = onToday) { Text("오늘") }
+            TextButton(onClick = onNext) { Text("›", style = MaterialTheme.typography.titleLarge) }
+        }
     }
 }
 
@@ -241,33 +267,38 @@ private fun MonthGrid(
     days: List<LocalDate>,
     selected: LocalDate,
     notesByDate: Map<LocalDate, List<Note>>,
+    tasksByDate: Map<LocalDate, List<Task>>,
     onSelect: (LocalDate) -> Unit,
     onOpenNote: (String) -> Unit,
 ) {
     // 요일 헤더 + 6주 행을 세로로 쌓는다. Column 이 없으면(부모가 Box/AnimatedContent) 행들이 겹쳐
     // "한 줄"처럼 보인다 — 반드시 Column 으로 감싼다.
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-            weekdayHeaders.forEach { d ->
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+            weekdayHeaders.forEachIndexed { i, d ->
                 Text(
                     text = d,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    // 일요일(index 6)만 절제된 클레이 강조.
+                    color = if (i == 6) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f).padding(4.dp),
                 )
             }
         }
         val today = today()
         days.chunked(7).forEach { week ->
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-                week.forEach { day ->
+            Row(modifier = Modifier.fillMaxWidth()) {
+                week.forEachIndexed { i, day ->
                     val inMonth = day.monthNumber == anchor.monthNumber && day.year == anchor.year
                     DayCell(
                         day = day,
                         inMonth = inMonth,
                         isSelected = day == selected,
                         isToday = day == today,
+                        isSunday = i == 6,
+                        isWeekend = i >= 5,
                         notes = notesByDate[day].orEmpty(),
+                        tasks = tasksByDate[day].orEmpty(),
                         onClick = { onSelect(day) },
                         onOpenNote = onOpenNote,
                         modifier = Modifier.weight(1f),
@@ -278,43 +309,60 @@ private fun MonthGrid(
     }
 }
 
+/**
+ * 「Warm Journal」 날짜 칸 — 부드러운 라운드 타일. 상단에 날짜 + 밀도 점(할일·중요·메모),
+ * 그 아래 메모 제목 미리보기 최대 2줄 + "+N개 더". 점은 밀도를, 글자는 내용을 담당한다.
+ */
 @Composable
 private fun DayCell(
     day: LocalDate,
     inMonth: Boolean,
     isSelected: Boolean,
     isToday: Boolean,
+    isSunday: Boolean,
+    isWeekend: Boolean,
     notes: List<Note>,
+    tasks: List<Task>,
     onClick: () -> Unit,
     onOpenNote: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tileColor = when {
+        !inMonth -> Color.Transparent
+        isSelected -> MaterialTheme.colorScheme.primaryContainer
+        isWeekend -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surface
+    }
     Column(
         modifier = modifier
-            .padding(2.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+            .padding(3.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .background(tileColor)
+            .then(
+                if (isSelected) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(13.dp))
+                else Modifier,
+            )
             .clickable(onClick = onClick)
-            .heightIn(min = 72.dp)
-            .padding(4.dp),
+            .heightIn(min = 92.dp)
+            .padding(horizontal = 7.dp, vertical = 6.dp),
     ) {
-        Text(
-            text = day.dayOfMonth.toString(),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-            color = when {
-                isToday -> MaterialTheme.colorScheme.primary
-                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                else -> MaterialTheme.colorScheme.onSurface
-            },
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DayNumber(day.dayOfMonth, isToday, inMonth, isSunday)
+            DensityDots(notes, tasks)
+        }
+        Spacer(Modifier.height(4.dp))
         notes.take(2).forEach { note ->
             Text(
                 text = note.title.ifBlank { "(제목 없음)" },
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (note.isPinned) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (note.isPinned) FontWeight.SemiBold else FontWeight.Normal,
                 modifier = Modifier.fillMaxWidth().clickable { onOpenNote(note.id) },
             )
         }
@@ -328,37 +376,113 @@ private fun DayCell(
     }
 }
 
+/** 오늘은 슬레이트 원으로 감싼 숫자, 그 외는 색만(일요일=클레이, 이번달 밖=흐리게). */
+@Composable
+private fun DayNumber(dayOfMonth: Int, isToday: Boolean, inMonth: Boolean, isSunday: Boolean) {
+    if (isToday) {
+        Box(
+            modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = dayOfMonth.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    } else {
+        Text(
+            text = dayOfMonth.toString(),
+            style = MaterialTheme.typography.labelLarge,
+            color = when {
+                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                isSunday -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.onSurface
+            },
+        )
+    }
+}
+
+private enum class DotKind { Important, Task, Note }
+
+/** 그날 밀도 점 — 중요(클레이)·할일(슬레이트)·메모(빈 원) 순으로 최대 4개. */
+@Composable
+private fun DensityDots(notes: List<Note>, tasks: List<Task>) {
+    val dots = buildList {
+        repeat(notes.count { it.isPinned }) { add(DotKind.Important) }
+        repeat(tasks.size) { add(DotKind.Task) }
+        repeat(notes.count { !it.isPinned }) { add(DotKind.Note) }
+    }.take(4)
+    if (dots.isEmpty()) return
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+        dots.forEach { Dot(it) }
+    }
+}
+
+@Composable
+private fun Dot(kind: DotKind) {
+    val base = Modifier.size(6.dp)
+    when (kind) {
+        DotKind.Important -> Box(base.clip(CircleShape).background(MaterialTheme.colorScheme.tertiary))
+        DotKind.Task -> Box(base.clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+        DotKind.Note -> Box(base.clip(CircleShape).border(1.3.dp, MaterialTheme.colorScheme.outline, CircleShape))
+    }
+}
+
 @Composable
 private fun WeekAgenda(
     days: List<LocalDate>,
     selected: LocalDate,
     notesByDate: Map<LocalDate, List<Note>>,
+    tasksByDate: Map<LocalDate, List<Task>>,
     onSelect: (LocalDate) -> Unit,
     onOpenNote: (String) -> Unit,
 ) {
     val today = today()
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         days.forEach { day ->
             val notes = notesByDate[day].orEmpty()
+            val tasks = tasksByDate[day].orEmpty()
+            val isToday = day == today
+            val isSunday = day.dayOfWeek == DayOfWeek.SUNDAY
+            val isWeekend = isSunday || day.dayOfWeek == DayOfWeek.SATURDAY
+            val tileColor = when {
+                day == selected -> MaterialTheme.colorScheme.primaryContainer
+                isWeekend -> MaterialTheme.colorScheme.secondaryContainer
+                else -> MaterialTheme.colorScheme.surface
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 2.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (day == selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(tileColor)
+                    .then(
+                        if (day == selected) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(13.dp))
+                        else Modifier,
+                    )
                     .clickable { onSelect(day) }
-                    .padding(10.dp),
+                    .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "${koreanDow(day.dayOfWeek)}\n${day.dayOfMonth}",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (day == today) FontWeight.Bold else FontWeight.Normal,
-                    color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(end = 12.dp),
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.width(40.dp),
+                ) {
+                    Text(
+                        koreanDow(day.dayOfWeek),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isSunday) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    DayNumber(day.dayOfMonth, isToday, inMonth = true, isSunday = isSunday)
+                }
+                Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    if (notes.isEmpty()) {
+                    if (notes.isEmpty() && tasks.isEmpty()) {
                         Text("—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         notes.take(3).forEach { n ->
@@ -367,14 +491,24 @@ private fun WeekAgenda(
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                fontWeight = if (n.isPinned) FontWeight.SemiBold else FontWeight.Normal,
                                 modifier = Modifier.fillMaxWidth().clickable { onOpenNote(n.id) },
                             )
                         }
                         if (notes.size > 3) {
                             Text("+${notes.size - 3}개 더", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         }
+                        if (tasks.isNotEmpty()) {
+                            Text(
+                                "할 일 ${tasks.size}개",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
+                Spacer(Modifier.width(8.dp))
+                DensityDots(notes, tasks)
             }
         }
     }
@@ -392,47 +526,111 @@ private fun DayDetail(
     onToggleTask: (String) -> Unit,
     onDeleteTask: (String) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(date.dayLabel(), style = MaterialTheme.typography.titleMedium)
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // 날짜 헤더 — 세리프 + 클레이 스와시(캘린더 헤더와 통일).
+        Text(
+            text = date.dayLabel(),
+            style = MaterialTheme.typography.titleLarge,
+            fontFamily = FontFamily.Serif,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Box(
+            modifier = Modifier
+                .padding(top = 1.dp)
+                .width(40.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.tertiary),
+        )
+        Spacer(Modifier.height(6.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Memo", style = MaterialTheme.typography.titleSmall)
-            TextButton(onClick = onAddNote) { Text("+ Memo 추가") }
+            SectionLabel("MEMO")
+            TextButton(onClick = onAddNote) { Text("+ 추가") }
         }
         if (notes.isEmpty()) {
-            // 빈 안내 영역을 탭해도 곧바로 새 메모 작성으로 진입한다(+ Memo 버튼과 동일).
+            // 빈 안내 영역을 탭해도 곧바로 새 메모 작성으로 진입한다(+ 추가 버튼과 동일).
             Text(
-                "이 날의 Memo가 없습니다. 탭하여 추가하세요.",
+                "이 날의 메모가 없습니다. 탭하여 추가하세요.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable(onClick = onAddNote)
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = 14.dp, horizontal = 12.dp),
             )
         }
         notes.forEach { note ->
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f).clickable { onOpenNote(note.id) }.padding(vertical = 6.dp)) {
-                    Text(note.title.ifBlank { "(제목 없음)" }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (note.content.isNotBlank()) {
-                        Text(note.content.trim(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                TextButton(onClick = { onDeleteNote(note.id) }) { Text("삭제") }
-            }
+            NoteDetailRow(note = note, onOpen = { onOpenNote(note.id) }, onDelete = { onDeleteNote(note.id) })
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        Spacer(Modifier.height(8.dp))
 
-        Text("To-Do", style = MaterialTheme.typography.titleSmall)
+        SectionLabel("TO-DO")
         tasks.forEach { task ->
             TaskRow(task = task, onToggle = { onToggleTask(task.id) }, onDelete = { onDeleteTask(task.id) })
         }
         TaskQuickAdd(onAdd = onAddTask)
         Box(modifier = Modifier.heightIn(min = 24.dp))
     }
+}
+
+/** 작은 클리니컬 섹션 라벨(자간 넓힘) — Quiet Cadence 캡션 톤. */
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        letterSpacing = 2.sp,
+    )
+}
+
+/** 상세의 메모 한 줄 — 부드러운 웜 타일. 핀은 굵게. 삭제는 절제된 ✕. */
+@Composable
+private fun NoteDetailRow(note: Note, onOpen: () -> Unit, onDelete: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onOpen)
+            .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                note.title.ifBlank { "(제목 없음)" },
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (note.isPinned) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (note.content.isNotBlank()) {
+                Text(
+                    note.content.trim(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        DeleteX(onDelete)
+    }
+}
+
+/** 절제된 삭제 버튼 — "삭제" 텍스트 대신 작은 ✕(onSurfaceVariant). */
+@Composable
+private fun DeleteX(onDelete: () -> Unit) {
+    Text(
+        text = "✕",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.clip(CircleShape).clickable(onClick = onDelete).padding(8.dp),
+    )
 }
 
 @Composable

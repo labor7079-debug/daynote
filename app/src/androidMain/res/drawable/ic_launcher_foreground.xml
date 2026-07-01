@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  「리본 저널」 전경 — 노트 페이지 + 슬레이트 텍스트 선 + 클레이 북마크.
+  108x108 뷰포트, 콘텐츠는 안전영역(중앙 66dp) 안에 배치. 배경(웜 본)은 adaptive-icon 이 제공.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 노트 페이지 (살짝 밝은 본 + 옅은 헤어라인) -->
+    <path
+        android:pathData="M40,30 h28 a6,6 0 0 1 6,6 v40 a6,6 0 0 1 -6,6 h-28 a6,6 0 0 1 -6,-6 v-40 a6,6 0 0 1 6,-6 z"
+        android:fillColor="#F7F4EC"
+        android:strokeColor="#C7C0B2"
+        android:strokeWidth="1.2" />
+
+    <!-- 본문 텍스트를 암시하는 슬레이트 선 3줄 (아래로 갈수록 옅게) -->
+    <path android:pathData="M42,53 L66,53" android:strokeColor="#3A4E62" android:strokeWidth="2.6" android:strokeLineCap="round" />
+    <path android:pathData="M42,62 L66,62" android:strokeColor="#3A4E62" android:strokeWidth="2.6" android:strokeLineCap="round" android:strokeAlpha="0.55" />
+    <path android:pathData="M42,71 L58,71" android:strokeColor="#3A4E62" android:strokeWidth="2.6" android:strokeLineCap="round" android:strokeAlpha="0.32" />
+
+    <!-- 클레이 북마크 리본 (절제된 강조 — 표시지 장식 아님) -->
+    <path android:pathData="M52,27 h12 v21 l-6,-5 -6,5 z" android:fillColor="#AA422D" />
+</vector>
