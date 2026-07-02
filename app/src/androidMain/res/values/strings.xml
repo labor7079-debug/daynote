@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">DayNote</string>
     <string name="widget_description">오늘의 메모와 할 일을 홈 화면에서 바로 봅니다.</string>
+    <string name="widget_month_description">월 달력과 오늘의 메모·할 일을 함께 봅니다.</string>
 </resources>

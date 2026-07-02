@@ -1,6 +1,8 @@
 package com.kangtaeyoung.daynote.notification
 
 import com.kangtaeyoung.daynote.core.nowMillis
+import com.kangtaeyoung.daynote.core.startOfDayMillis
+import com.kangtaeyoung.daynote.core.today
 import com.kangtaeyoung.daynote.data.local.dao.TaskDao
 import com.kangtaeyoung.daynote.data.repository.SettingsRepository
 import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
@@ -33,16 +35,28 @@ class ReminderCoordinator(
         }
     }
 
-    /** 앞으로 마감인 '시간 지정' 할 일들의 알림을 (재)예약한다. */
+    /**
+     * 앞으로 올 알림을 (재)예약한다 — 시간 지정 할 일은 마감 시각 정시에,
+     * **종일 할 일은 그 날 기본시각(오전 9시)에** 알린다(이미 지난 시각이면 건너뜀).
+     */
     suspend fun reschedule() {
         if (!settings.isRemindersEnabled()) return
         val now = nowMillis()
         taskDao.getTimedUpcoming(now).forEach { task ->
             task.dueDate?.let { due -> scheduler.schedule(task.id, task.text, due) }
         }
+        val startOfToday = today().startOfDayMillis()
+        taskDao.getAllDayUpcoming(startOfToday).forEach { task ->
+            val due = task.dueDate ?: return@forEach
+            val trigger = due + ALL_DAY_REMINDER_OFFSET_MS // 자정 + 9시간
+            if (trigger > now) scheduler.schedule(task.id, task.text, trigger)
+        }
     }
 
     private companion object {
         const val DEBOUNCE_MS = 1_500L
+
+        /** 종일 할 일의 기본 알림 시각 — 마감일 자정 기준 +9시간(오전 9시). */
+        const val ALL_DAY_REMINDER_OFFSET_MS = 9 * 60 * 60 * 1_000L
     }
 }

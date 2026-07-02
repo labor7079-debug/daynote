@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 월 그리드 한 칸 — 날짜 숫자. 오늘=widget_today_bg, 항목 있는 날=밑줄+굵게(코드에서). -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_month_day"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp"
+    android:textSize="11sp"
+    android:textColor="@color/widgetText" />

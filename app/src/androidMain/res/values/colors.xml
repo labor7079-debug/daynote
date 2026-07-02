@@ -9,4 +9,8 @@
     <color name="widgetTextDim">#6C675E</color>
     <color name="widgetAccent">#AA422D</color>
     <color name="widgetTaskChip">#E2DCCF</color>
+    <!-- 월 그리드 위젯 — 오늘 마커(슬레이트)·희미한 날짜(이번달 밖). -->
+    <color name="widgetToday">#3A4E62</color>
+    <color name="widgetOnToday">#F0ECE3</color>
+    <color name="widgetTextFaint">#BDB7AB</color>
 </resources>

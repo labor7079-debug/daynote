@@ -34,6 +34,16 @@ interface TaskDao {
     )
     suspend fun getTimedUpcoming(now: Long): List<TaskEntity>
 
+    /** 알림 예약용 — 오늘 이후 마감인 '종일'(allDay=1) 활성·미완료 할 일(기본시각 알림). */
+    @Query(
+        """
+        SELECT * FROM tasks
+        WHERE deletedAt IS NULL AND isDone = 0 AND allDay = 1
+          AND dueDate IS NOT NULL AND dueDate >= :startOfToday
+        """,
+    )
+    suspend fun getAllDayUpcoming(startOfToday: Long): List<TaskEntity>
+
     /** 완료/미완료 토글. UI 의 체크박스 동선에 맞춰 단일 UPDATE 로 원자적으로 뒤집는다. */
     @Query("UPDATE tasks SET isDone = NOT isDone, updatedAt = :timestamp WHERE id = :id")
     suspend fun toggleDone(id: String, timestamp: Long)

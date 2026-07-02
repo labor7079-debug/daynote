@@ -25,9 +25,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kangtaeyoung.daynote.core.toHourMinuteLabel
+import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.domain.model.AiAction
+import com.kangtaeyoung.daynote.domain.model.AiResult
 import com.kangtaeyoung.daynote.domain.usecase.AskAiUseCase
+import com.kangtaeyoung.daynote.domain.usecase.ObserveAiResultsUseCase
 import com.kangtaeyoung.daynote.domain.usecase.RunAiActionUseCase
 import org.koin.compose.koinInject
 
@@ -46,9 +52,12 @@ fun AiPanel(
 ) {
     val runAiAction = koinInject<RunAiActionUseCase>()
     val askAi = koinInject<AskAiUseCase>()
-    val vm = viewModel(key = "ai:${noteId ?: "new"}") { AiViewModel(runAiAction, askAi) }
+    val observeAiResults = koinInject<ObserveAiResultsUseCase>()
+    val vm = viewModel(key = "ai:${noteId ?: "new"}") { AiViewModel(runAiAction, askAi, observeAiResults, noteId) }
     val state by vm.uiState.collectAsState()
+    val history by vm.history.collectAsState()
     var question by remember { mutableStateOf("") }
+    var showHistory by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("AI", style = MaterialTheme.typography.titleSmall)
@@ -129,6 +138,49 @@ fun AiPanel(
                     )
                     TextButton(onClick = vm::reset) { Text("닫기") }
                 }
+            }
+        }
+
+        // 과거 AI 결과 이력(이 메모) — Room 저장분이라 오프라인·재시작에도 유지된다.
+        if (history.isNotEmpty()) {
+            TextButton(onClick = { showHistory = !showHistory }) {
+                Text(if (showHistory) "이전 결과 접기" else "이전 결과 ${history.size}개 보기")
+            }
+            if (showHistory) {
+                history.forEach { result ->
+                    AiHistoryItem(result = result, onApplyToNote = onApplyToNote)
+                }
+            }
+        }
+    }
+}
+
+/** 이력 한 건 — 탭하면 전체 펼침, "메모에 반영"으로 본문에 덧붙일 수 있다. */
+@Composable
+private fun AiHistoryItem(result: AiResult, onApplyToNote: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val d = result.createdAt.toLocalDate()
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                "${result.action.label} · ${d.monthNumber}월 ${d.dayOfMonth}일 ${result.createdAt.toHourMinuteLabel()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                result.resultText,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = if (expanded) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (expanded) {
+                TextButton(onClick = { onApplyToNote(result.resultText) }) { Text("메모에 반영") }
             }
         }
     }

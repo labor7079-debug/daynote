@@ -58,6 +58,21 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_daynote_info" />
         </receiver>
+
+        <!-- 홈 화면 위젯(월 그리드) — 미니 월 달력 + 오늘의 항목. -->
+        <receiver
+            android:name=".widget.DayNoteMonthWidgetProvider"
+            android:exported="true"
+            android:label="DayNote 월 달력">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_month_info" />
+        </receiver>
     </application>
 
 </manifest>

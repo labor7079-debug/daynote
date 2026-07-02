@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 월 그리드 위젯의 '오늘' 마커 — 슬레이트 라운드(앱 달력의 오늘 원과 같은 컨셉). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/widgetToday" />
+    <corners android:radius="10dp" />
+</shape>

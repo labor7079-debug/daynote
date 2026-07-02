@@ -6,4 +6,8 @@
     <color name="widgetTextDim">#A8A196</color>
     <color name="widgetAccent">#D98366</color>
     <color name="widgetTaskChip">#2B2823</color>
+    <!-- 월 그리드 위젯 다크. -->
+    <color name="widgetToday">#8FA6BC</color>
+    <color name="widgetOnToday">#1A1815</color>
+    <color name="widgetTextFaint">#57524B</color>
 </resources>

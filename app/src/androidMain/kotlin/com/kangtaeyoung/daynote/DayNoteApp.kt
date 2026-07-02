@@ -3,6 +3,7 @@ package com.kangtaeyoung.daynote
 import android.app.Application
 import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
 import com.kangtaeyoung.daynote.di.initKoin
+import com.kangtaeyoung.daynote.widget.DayNoteMonthWidgetProvider
 import com.kangtaeyoung.daynote.widget.DayNoteWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,10 @@ class DayNoteApp : Application() {
         appScope.launch {
             changes.changes
                 .debounce(WIDGET_REFRESH_DEBOUNCE_MS)
-                .collect { DayNoteWidgetProvider.updateAll(this@DayNoteApp) }
+                .collect {
+                    DayNoteWidgetProvider.updateAll(this@DayNoteApp)
+                    DayNoteMonthWidgetProvider.updateAll(this@DayNoteApp)
+                }
         }
     }
 

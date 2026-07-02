@@ -5,10 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.kangtaeyoung.daynote.domain.model.AiAction
 import com.kangtaeyoung.daynote.domain.model.AiResult
 import com.kangtaeyoung.daynote.domain.usecase.AskAiUseCase
+import com.kangtaeyoung.daynote.domain.usecase.ObserveAiResultsUseCase
 import com.kangtaeyoung.daynote.domain.usecase.RunAiActionUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** AI 패널 상태 — 한 번에 하나(CLAUDE.md 4-B). */
@@ -26,10 +30,17 @@ sealed interface AiUiState {
 class AiViewModel(
     private val runAiAction: RunAiActionUseCase,
     private val askAi: AskAiUseCase,
+    observeAiResults: ObserveAiResultsUseCase,
+    noteId: String?,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AiUiState>(AiUiState.Idle)
     val uiState: StateFlow<AiUiState> = _uiState.asStateFlow()
+
+    /** 이 메모의 과거 AI 결과(최근 순) — Room 에 이미 저장돼 있어 오프라인에서도 열람된다. */
+    val history: StateFlow<List<AiResult>> =
+        (if (noteId == null) flowOf(emptyList()) else observeAiResults(noteId))
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun run(action: AiAction, sourceText: String, noteId: String?) {
         if (_uiState.value is AiUiState.Loading) return // 중복 호출 방지

@@ -18,4 +18,14 @@
         <item name="android:textColor">@color/widgetText</item>
         <item name="android:visibility">gone</item>
     </style>
+
+    <!-- 월 그리드 위젯의 요일 헤더 한 칸. -->
+    <style name="WidgetDow">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textColor">@color/widgetTextDim</item>
+    </style>
 </resources>
