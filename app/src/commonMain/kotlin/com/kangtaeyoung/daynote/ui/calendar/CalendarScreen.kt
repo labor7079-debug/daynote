@@ -414,7 +414,7 @@ private fun MonthGrid(
                         notes = notesByDate[day].orEmpty(),
                         tasks = tasksByDate[day].orEmpty(),
                         laneTasks = bars.laneTasksByDay[day].orEmpty(),
-                        rangedOverflow = bars.overflowByDay[day] ?: 0,
+                        rangedOverflow = bars.overflowByDay[day].orEmpty(),
                         weekStart = week.first(),
                         onClick = { onSelect(day) },
                         onOpenNote = onOpenNote,
@@ -441,7 +441,7 @@ private fun DayCell(
     notes: List<Note>,
     tasks: List<Task>,
     laneTasks: List<Task?>,
-    rangedOverflow: Int,
+    rangedOverflow: List<Task>,
     weekStart: LocalDate,
     onClick: () -> Unit,
     onOpenNote: (String) -> Unit,
@@ -495,7 +495,10 @@ private fun DayCell(
                     modifier = Modifier.padding(horizontal = 10.dp),
                 )
             }
-            notes.take(2).forEach { note ->
+            // "+N개 더" 탭 → 숨겨진 항목을 칸 아래로 펼치는 드롭다운. 날짜가 바뀌면 접힌 상태로 초기화.
+            var expanded by remember(day) { mutableStateOf(false) }
+            val visibleNotes = if (expanded) notes else notes.take(2)
+            visibleNotes.forEach { note ->
                 Text(
                     text = note.title.ifBlank { "(제목 없음)" },
                     style = MaterialTheme.typography.labelSmall,
@@ -508,16 +511,19 @@ private fun DayCell(
             }
             // 하루짜리 할 일은 내용을 옅은 박스로(접힘/펼침 표기 통일).
             val single = tasks.filter { it.endDate == null }
-            single.take(2).forEach { task -> TaskLineChip(task) }
+            val visibleSingle = if (expanded) single else single.take(2)
+            visibleSingle.forEach { task -> TaskLineChip(task) }
+            // 레인 부족으로 bar 를 못 그린 기간 할 일은 펼쳤을 때 칩(기간 병기)으로 보여준다.
+            if (expanded) rangedOverflow.forEach { task -> TaskLineChip(task) }
             val more = (notes.size - 2).coerceAtLeast(0) +
                 (single.size - 2).coerceAtLeast(0) +
-                rangedOverflow
+                rangedOverflow.size
             if (more > 0) {
                 Text(
-                    text = "+${more}개 더",
+                    text = if (expanded) "접기" else "+${more}개 더",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 10.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp).clickable { expanded = !expanded },
                 )
             }
         }
@@ -527,7 +533,8 @@ private fun DayCell(
 /** 한 주에 걸치는 기간 할 일에 레인(세로 줄)을 배정한 결과. */
 private data class WeekBars(
     val laneTasksByDay: Map<LocalDate, List<Task?>>,
-    val overflowByDay: Map<LocalDate, Int>,
+    // 레인 부족으로 bar 를 못 그린 기간 할 일 — "+N개 더" 개수이자 펼침(드롭다운) 시 보여줄 목록.
+    val overflowByDay: Map<LocalDate, List<Task>>,
     val laneCount: Int,
 )
 
@@ -567,14 +574,14 @@ private fun computeWeekBars(
     val laneCount = lanes.size
 
     val laneTasksByDay = HashMap<LocalDate, List<Task?>>()
-    val overflowByDay = HashMap<LocalDate, Int>()
+    val overflowByDay = HashMap<LocalDate, List<Task>>()
     for (day in week) {
         val onDay = (tasksByDate[day].orEmpty()).filter { it.endDate != null }
         val arr = arrayOfNulls<Task>(laneCount)
-        var overflow = 0
+        val overflow = ArrayList<Task>()
         for (t in onDay) {
             val lane = laneOf[t.id] ?: -1
-            if (lane in 0 until laneCount) arr[lane] = t else overflow++
+            if (lane in 0 until laneCount) arr[lane] = t else overflow.add(t)
         }
         laneTasksByDay[day] = arr.asList()
         overflowByDay[day] = overflow
@@ -612,9 +619,10 @@ private fun TaskLineChip(task: Task) {
 }
 
 /**
- * 기간 할 일 bar 한 칸 조각 — **칸 전체 폭**(가로 여백 0)에 그려, 맞닿은 이웃 칸의 조각과
- * 틈 없이 이어져 하나의 막대로 보인다. 실제 시작일만 왼쪽·종료일만 오른쪽 모서리를 둥글리고
- * 나머지(맞닿는 변)는 각지게 둔다. 라벨(제목)은 시작일 또는 그 주의 첫 칸([weekStart])에만 표기.
+ * 기간 할 일 bar 한 칸 조각 — 중간 조각은 **칸 전체 폭**(가로 여백 0)에 그려, 맞닿은 이웃 칸의
+ * 조각과 틈 없이 이어져 하나의 막대로 보인다. 단, 실제 시작일의 왼쪽·종료일의 오른쪽 끝은
+ * 타일(칸 안쪽 3dp) 밖으로 삐져나가지 않도록 6dp 들여쓴다. 시작일만 왼쪽·종료일만 오른쪽
+ * 모서리를 둥글리고 나머지(맞닿는 변)는 각지게 둔다. 라벨(제목)은 시작일 또는 그 주의 첫 칸([weekStart])에만 표기.
  */
 @Composable
 private fun SeamlessDayBar(task: Task, day: LocalDate, weekStart: LocalDate) {
@@ -634,7 +642,11 @@ private fun SeamlessDayBar(task: Task, day: LocalDate, weekStart: LocalDate) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 2.dp)
+            .padding(
+                start = if (roundLeft) 6.dp else 0.dp,
+                end = if (roundRight) 6.dp else 0.dp,
+                top = 2.dp,
+            )
             .height(16.dp)
             .clip(shape)
             .background(barColor),
@@ -776,7 +788,10 @@ private fun WeekAgenda(
                             Text("—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
-                        notes.take(3).forEach { n ->
+                        // "+N개 더" 탭 → 숨겨진 항목을 아래로 펼치는 드롭다운(월 달력 칸과 동일 동작).
+                        var expanded by remember(day) { mutableStateOf(false) }
+                        val visibleNotes = if (expanded) notes else notes.take(3)
+                        visibleNotes.forEach { n ->
                             Text(
                                 text = n.title.ifBlank { "(제목 없음)" },
                                 style = MaterialTheme.typography.bodySmall,
@@ -786,16 +801,31 @@ private fun WeekAgenda(
                                 modifier = Modifier.fillMaxWidth().clickable { onOpenNote(n.id) },
                             )
                         }
-                        if (notes.size > 3) {
-                            Text("+${notes.size - 3}개 더", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        if (!expanded && notes.size > 3) {
+                            Text(
+                                "+${notes.size - 3}개 더",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable { expanded = true },
+                            )
                         }
                         // "할 일 N개" 대신 내용을 박스로 — 월 달력(펼침)과 같은 표기.
-                        tasks.take(2).forEach { task -> TaskLineChip(task) }
-                        if (tasks.size > 2) {
+                        val visibleTasks = if (expanded) tasks else tasks.take(2)
+                        visibleTasks.forEach { task -> TaskLineChip(task) }
+                        if (!expanded && tasks.size > 2) {
                             Text(
                                 "+할 일 ${tasks.size - 2}개 더",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clickable { expanded = true },
+                            )
+                        }
+                        if (expanded && (notes.size > 3 || tasks.size > 2)) {
+                            Text(
+                                "접기",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable { expanded = false },
                             )
                         }
                     }

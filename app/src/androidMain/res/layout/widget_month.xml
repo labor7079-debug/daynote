@@ -9,7 +9,7 @@
     android:layout_height="match_parent"
     android:orientation="horizontal"
     android:background="@drawable/widget_bg"
-    android:padding="12dp">
+    android:padding="10dp">
 
     <!-- 좌: 미니 월 달력 -->
     <LinearLayout
@@ -22,10 +22,10 @@
             android:id="@+id/widget_month_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:textColor="@color/widgetText"
-            android:paddingBottom="4dp" />
+            android:paddingBottom="2dp" />
 
         <LinearLayout
             android:layout_width="match_parent"
