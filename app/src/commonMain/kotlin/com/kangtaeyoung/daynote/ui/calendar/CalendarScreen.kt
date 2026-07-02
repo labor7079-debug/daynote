@@ -64,6 +64,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -472,14 +473,39 @@ private fun DayCell(
                 modifier = Modifier.fillMaxWidth().clickable { onOpenNote(note.id) },
             )
         }
-        if (notes.size > 2) {
+        // 할 일은 개수가 아니라 내용을 보여준다 — 메모와 구분되는 옅은 박스(접힘/펼침 표기 통일).
+        tasks.take(2).forEach { task -> TaskLineChip(task) }
+        val more = (notes.size - 2).coerceAtLeast(0) + (tasks.size - 2).coerceAtLeast(0)
+        if (more > 0) {
             Text(
-                text = "+${notes.size - 2}개 더",
+                text = "+${more}개 더",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
     }
+}
+
+/**
+ * 달력 칸 안의 할 일 한 줄 — 첨부 컨셉대로 옅은 회색 박스로 메모(맨글자)와 구분한다.
+ * 첫 줄만 한 줄 말줄임으로 간략 표기, 완료된 할 일은 취소선.
+ */
+@Composable
+private fun TaskLineChip(task: Task) {
+    Text(
+        text = task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { "(내용 없음)" },
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textDecoration = if (task.isDone) TextDecoration.LineThrough else null,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp)
+            .clip(RoundedCornerShape(5.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+    )
 }
 
 /** 오늘은 슬레이트 원으로 감싼 숫자, 그 외는 색만(일요일·공휴일=클레이, 이번달 밖=흐리게). */
@@ -616,9 +642,11 @@ private fun WeekAgenda(
                         if (notes.size > 3) {
                             Text("+${notes.size - 3}개 더", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         }
-                        if (tasks.isNotEmpty()) {
+                        // "할 일 N개" 대신 내용을 박스로 — 월 달력(펼침)과 같은 표기.
+                        tasks.take(2).forEach { task -> TaskLineChip(task) }
+                        if (tasks.size > 2) {
                             Text(
-                                "할 일 ${tasks.size}개",
+                                "+할 일 ${tasks.size - 2}개 더",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
