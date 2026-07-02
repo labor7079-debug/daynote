@@ -176,6 +176,7 @@ fun DayNoteNavHost() {
                     initialDate = navigator.editorInitialDate,
                     onBack = { navigator.goBack() },
                     onOpenInk = { navigator.openInk() },
+                    onOpenNote = { id -> navigator.openNote(id) },
                 )
             }
             composable(Routes.SEARCH) {

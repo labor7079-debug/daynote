@@ -40,4 +40,10 @@ interface NoteRepository {
 
     /** 본문/제목 전문 검색. 사용자 입력은 구현체가 FTS MATCH 문법으로 정제한다. 빈 입력은 빈 결과. */
     fun search(query: String): Flow<List<Note>>
+
+    /**
+     * 작성 중인 텍스트와 비슷한 메모 찾기(실시간 추천). 키워드를 뽑아 OR 매칭으로 느슨하게 검색하고,
+     * [excludeNoteId](자기 자신)와 [excludeDate](같은 날짜의 메모)는 제외한다. 최대 5건.
+     */
+    fun searchRelated(sourceText: String, excludeNoteId: String?, excludeDate: Long?): Flow<List<Note>>
 }

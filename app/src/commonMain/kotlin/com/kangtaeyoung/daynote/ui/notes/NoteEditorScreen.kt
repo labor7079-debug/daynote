@@ -50,6 +50,9 @@ import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
 import com.kangtaeyoung.daynote.data.repository.SettingsRepository
+import com.kangtaeyoung.daynote.core.toLocalDate
+import com.kangtaeyoung.daynote.domain.model.Note
+import com.kangtaeyoung.daynote.domain.usecase.FindRelatedNotesUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteTasksUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SuggestTitleUseCase
@@ -57,6 +60,10 @@ import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
 import com.kangtaeyoung.daynote.ui.components.MarkdownText
 import com.kangtaeyoung.daynote.ui.components.TaskRow
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +73,7 @@ fun NoteEditorScreen(
     initialDate: Long? = null,
     onBack: () -> Unit,
     onOpenInk: () -> Unit = {},
+    onOpenNote: (String) -> Unit = {},
 ) {
     val observeNote = koinInject<ObserveNoteUseCase>()
     val addNote = koinInject<AddNoteUseCase>()
@@ -77,6 +85,7 @@ fun NoteEditorScreen(
     val deleteTask = koinInject<DeleteTaskUseCase>()
     val suggestTitle = koinInject<SuggestTitleUseCase>()
     val settings = koinInject<SettingsRepository>()
+    val findRelatedNotes = koinInject<FindRelatedNotesUseCase>()
 
     val vm = viewModel(key = "editor:${noteId ?: "new:$initialDate"}") {
         NoteEditorViewModel(
@@ -92,10 +101,12 @@ fun NoteEditorScreen(
             deleteTask = deleteTask,
             suggestTitle = suggestTitle,
             settings = settings,
+            findRelatedNotes = findRelatedNotes,
         )
     }
     val tasks by vm.tasks.collectAsState()
     val savedNoteId by vm.savedId.collectAsState()
+    val relatedNotes by vm.relatedNotes.collectAsState()
     var preview by remember { mutableStateOf(false) }
 
     val aiShare = rememberAiShare()
@@ -141,7 +152,16 @@ fun NoteEditorScreen(
         bottomBar = {
             Surface(tonalElevation = 3.dp) {
                 Button(
-                    onClick = { vm.save() },
+                    onClick = {
+                        // 저장 피드백: 실제로 저장됐을 때만 "저장되었습니다", 빈 메모면 안내.
+                        if (savedNoteId == null && vm.title.isBlank() && vm.content.isBlank()) {
+                            scope.launch { snackbarHostState.showSnackbar("저장할 내용이 없어요.") }
+                        } else {
+                            vm.save {
+                                scope.launch { snackbarHostState.showSnackbar("저장되었습니다 ✓") }
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding() // 시스템 내비게이션 바와 겹치지 않게
@@ -161,7 +181,7 @@ fun NoteEditorScreen(
         ) {
             OutlinedTextField(
                 value = vm.title,
-                onValueChange = { vm.title = it },
+                onValueChange = vm::onTitleChange,
                 label = { Text("제목") },
                 singleLine = true,
                 // 제목칸 옆 ✨ — 본문을 근거로 AI 제목 생성(키 없음/실패 시 본문 첫 줄 폴백).
@@ -210,6 +230,19 @@ fun NoteEditorScreen(
                 )
             }
 
+            // 실시간 유사 메모 추천 — 입력을 디바운스해 로컬 FTS 로 다른 날의 비슷한 메모를 보여준다.
+            if (relatedNotes.isNotEmpty()) {
+                Text(
+                    "비슷한 메모",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 2.sp,
+                )
+                relatedNotes.forEach { note ->
+                    RelatedNoteRow(note = note, onOpen = { onOpenNote(note.id) })
+                }
+            }
+
             HorizontalDivider()
 
             Text(
@@ -225,7 +258,14 @@ fun NoteEditorScreen(
                     onDelete = { vm.removeTask(task.id) },
                 )
             }
-            TaskInput(onAdd = vm::addNewTask)
+            TaskInput(onAdd = { text ->
+                if (text.isBlank()) {
+                    scope.launch { snackbarHostState.showSnackbar("할 일 내용을 입력하세요.") }
+                } else {
+                    vm.addNewTask(text)
+                    scope.launch { snackbarHostState.showSnackbar("할 일이 추가되었습니다 ✓") }
+                }
+            })
 
             HorizontalDivider()
 
@@ -249,6 +289,35 @@ private fun buildAiShareText(title: String, content: String): String {
     return when {
         t.isNotEmpty() && c.isNotEmpty() -> "$t\n\n$c"
         else -> t.ifEmpty { c }
+    }
+}
+
+/** 추천된 비슷한 메모 한 줄 — 날짜와 제목을 보여주고 탭하면 그 메모를 연다. */
+@Composable
+private fun RelatedNoteRow(note: Note, onOpen: () -> Unit) {
+    val dateLabel = note.date?.toLocalDate()?.let { "${it.monthNumber}월 ${it.dayOfMonth}일" } ?: "날짜 없음"
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onOpen)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                note.title.ifBlank { "(제목 없음)" },
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "$dateLabel${if (note.content.isNotBlank()) " · ${note.content.trim().take(60)}" else ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

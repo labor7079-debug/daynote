@@ -39,17 +39,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +73,10 @@ import com.kangtaeyoung.daynote.core.startOfDayMillis
 import com.kangtaeyoung.daynote.core.today
 import com.kangtaeyoung.daynote.core.toMillisRange
 import com.kangtaeyoung.daynote.core.weekDays
+import com.kangtaeyoung.daynote.data.repository.SettingsRepository
+import com.kangtaeyoung.daynote.data.sync.CalendarSyncManager
+import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
+import com.kangtaeyoung.daynote.data.sync.CloudSyncState
 import com.kangtaeyoung.daynote.domain.model.Note
 import com.kangtaeyoung.daynote.domain.model.Task
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
@@ -84,6 +92,8 @@ import com.kangtaeyoung.daynote.ui.theme.SettingsGearIcon
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.plus
@@ -121,7 +131,37 @@ fun CalendarScreen(
 
     var anchor by remember { mutableStateOf(today()) }
 
+    // 당겨서 새로고침 → 동기화(클라우드 + 토글 켜진 경우 구글 캘린더 push). 결과는 스낵바로 알린다.
+    val cloudSync = koinInject<CloudSyncManager>()
+    val calendarSync = koinInject<CalendarSyncManager>()
+    val settings = koinInject<SettingsRepository>()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var refreshing by remember { mutableStateOf(false) }
+    val onRefresh: () -> Unit = {
+        if (!refreshing) {
+            refreshing = true
+            scope.launch {
+                cloudSync.syncNow()
+                if (calendarSync.isAvailable && settings.observeSyncEnabled().first()) {
+                    calendarSync.syncNow()
+                }
+                refreshing = false
+                val message = when (val s = cloudSync.state.value) {
+                    is CloudSyncState.Synced -> "동기화 완료 ✓"
+                    is CloudSyncState.Error -> "동기화 실패: ${s.message.lineSequence().first()}"
+                    CloudSyncState.Disabled -> "클라우드 동기화가 꺼져 있어요. 설정에서 켤 수 있어요."
+                    CloudSyncState.NeedsConfig -> "동기화 설정(설정 화면)이 필요해요."
+                    CloudSyncState.SignedOut -> "동기화 로그인이 필요해요(설정 화면)."
+                    else -> null
+                }
+                message?.let { snackbarHostState.showSnackbar(it) }
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Calendar") },
@@ -209,30 +249,45 @@ fun CalendarScreen(
                     onOpenNote = onOpenNote,
                     onAddNote = { onAddNoteForDate(selectedDate.startOfDayMillis()) },
                     onDeleteNote = vm::removeNote,
-                    onAddTask = vm::addTaskForSelectedDate,
+                    onAddTask = { text, allDay, hour, minute ->
+                        // 추가 피드백: 실제 추가됐을 때만 확인 스낵바(빈 입력은 안내).
+                        if (text.isBlank()) {
+                            scope.launch { snackbarHostState.showSnackbar("할 일 내용을 입력하세요.") }
+                        } else {
+                            vm.addTaskForSelectedDate(text, allDay, hour, minute)
+                            scope.launch { snackbarHostState.showSnackbar("할 일이 추가되었습니다 ✓") }
+                        }
+                    },
                     onToggleTask = vm::toggle,
                     onDeleteTask = vm::removeTask,
                 )
             }
 
-            if (twoPane) {
-                // 좌우 2단 — 같은 선택 날짜 상태를 공유(달력 칸 탭 → 우측 상세 즉시 갱신).
-                Row(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.weight(0.58f).fillMaxHeight().verticalScroll(rememberScrollState()),
-                    ) { calendarArea() }
-                    VerticalDivider()
-                    Column(
-                        modifier = Modifier.weight(0.42f).fillMaxHeight().verticalScroll(rememberScrollState())
-                            .padding(top = 12.dp),
-                    ) { detailArea() }
-                }
-            } else {
-                // 1단(스택) — 폰=주 아젠다, 태블릿 세로/폴드 접힘=월 달력, 아래 상세.
-                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                    calendarArea()
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    detailArea()
+            // 위에서 아래로 당기면 동기화(업데이트). 스크롤 최상단에서 동작한다.
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = onRefresh,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                if (twoPane) {
+                    // 좌우 2단 — 같은 선택 날짜 상태를 공유(달력 칸 탭 → 우측 상세 즉시 갱신).
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        Column(
+                            modifier = Modifier.weight(0.58f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                        ) { calendarArea() }
+                        VerticalDivider()
+                        Column(
+                            modifier = Modifier.weight(0.42f).fillMaxHeight().verticalScroll(rememberScrollState())
+                                .padding(top = 12.dp),
+                        ) { detailArea() }
+                    }
+                } else {
+                    // 1단(스택) — 폰=주 아젠다, 태블릿 세로/폴드 접힘=월 달력, 아래 상세.
+                    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        calendarArea()
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        detailArea()
+                    }
                 }
             }
         }

@@ -86,6 +86,26 @@ class NoteRepositoryImpl(
         val match = toFtsMatch(query) ?: return flowOf(emptyList())
         return dao.search(match).map { list -> list.map { it.toDomain() } }
     }
+
+    override fun searchRelated(
+        sourceText: String,
+        excludeNoteId: String?,
+        excludeDate: Long?,
+    ): Flow<List<Note>> {
+        val match = toFtsMatchAny(sourceText) ?: return flowOf(emptyList())
+        return dao.search(match).map { list ->
+            list.asSequence()
+                .filter { it.id != excludeNoteId }
+                .filter { excludeDate == null || it.date != excludeDate }
+                .take(RELATED_LIMIT)
+                .map { it.toDomain() }
+                .toList()
+        }
+    }
+
+    private companion object {
+        const val RELATED_LIMIT = 5
+    }
 }
 
 /**
@@ -99,4 +119,21 @@ internal fun toFtsMatch(raw: String): String? {
     val tokens = cleaned.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
     if (tokens.isEmpty()) return null
     return tokens.joinToString(" ") { "$it*" }
+}
+
+/**
+ * 유사 메모 추천용 느슨한 FTS 식. [toFtsMatch](AND)와 달리 **OR 매칭**이라 키워드 하나만 겹쳐도 찾는다.
+ * - 문자·숫자 외 기호로 토큰화, 2글자 미만·숫자만인 토큰 제거
+ * - 빈도(내용의 중심 주제일수록 반복됨) → 길이 순으로 상위 [maxTokens]개만 사용
+ * - 각 토큰은 접두 매칭(`*`)으로 어미 변화를 흡수
+ */
+internal fun toFtsMatchAny(raw: String, maxTokens: Int = 8): String? {
+    val tokens = raw.split(Regex("[^\\p{L}\\p{N}]+"))
+        .filter { it.length >= 2 && !it.all(Char::isDigit) }
+    if (tokens.isEmpty()) return null
+    val ranked = tokens.groupingBy { it }.eachCount().entries
+        .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenByDescending { it.key.length })
+        .take(maxTokens)
+        .map { it.key }
+    return ranked.joinToString(" OR ") { "$it*" }
 }

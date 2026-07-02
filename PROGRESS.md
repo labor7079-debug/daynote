@@ -2,13 +2,24 @@
 
 > 내일 이어가기 위한 인수인계 메모. 상세 명세는 [CLAUDE.md](CLAUDE.md), 빌드 절차는 [BUILD.md](BUILD.md).
 >
-> _최종 업데이트: 2026-07-01_
+> _최종 업데이트: 2026-07-02_
 
 ## 현재 위치: 기능·디자인·배포자산 준비 완료 → **개발자 계정 승인 대기 중**, 승인 나면 Play 업로드
 
-**오늘(2026-07-01) 한 것**: AI 제목 자동생성(4-C) · Warm Journal 재설계(캘린더·상세·에디터) · 리본 저널 앱 아이콘 · 하단바 보라 제거+톱니 아이콘 · **로컬 백업/복원** · **할 일 마감 리마인더** · 릴리스 서명 배선 + 서명 AAB · 3-OS CI · 배포 자산(개인정보방침·데이터보안·스토어문구·심사원안내·512아이콘·1024×500 피처그래픽) · GitHub Pages 공개 · **릴리스 키스토어 생성 + 릴리스 SHA-1 OAuth 등록**.
+**오늘(2026-07-02) 한 것 — 사용자 피드백 6건 반영**: 🐞**캘린더 미표시 버그 수정**(에디터 To-Do가 메모 날짜를 dueDate로 상속 + 새 메모는 날짜 없으면 오늘 자동 주입) · **구글 캘린더 무음 재로그인**(세션마다 로그인 불필요) · **저장/추가 스낵바 피드백** · **당겨서 새로고침 → 동기화** · **비슷한 메모 실시간 추천**(로컬 FTS). 상세는 아래 "사용자 피드백 2차 수정" 참조.
 
-**막힘 없음. 기다리는 것 = Play 개발자 계정 승인뿐.** 코드/자산은 제출 준비 끝(작업트리 clean, `b3ebb1e` 푸시됨).
+### 🔧 사용자 피드백 2차 수정 ✅ (2026-07-02)
+> 기기 사용 피드백 6건. **assembleDebug + desktopTest(27건, 신규 2건 포함) 모두 BUILD SUCCESSFUL.**
+
+- 🐞 **① 메모·To-Do가 캘린더에 안 뜸(가장 중요)** — 근본 원인 2개: (a) 에디터의 "할 일 추가"가 `dueDate=null`로 저장 → `observeByDueDateRange`(dueDate 범위 쿼리)에 영원히 안 걸림. (b) 메모 탭에서 만든 새 메모가 `date=null` → 캘린더 조회 제외. **수정**: `NoteEditorViewModel.noteDate()`(기존 메모=저장된 date, 캘린더 진입=initialDate, 그 외=오늘) 도입 → `addNewTask`가 이 날짜를 dueDate(allDay)로 상속, 새 메모 `persist()`도 이 날짜를 항상 주입. 설계원칙 5("날짜 위에 메모가 얹힌다") 정합. 날짜 탭 → 하단(1단)/우측(2단) 상세(DayDetail)에 즉시 표출됨(이 표시 UI 자체는 원래 있었고 데이터가 안 잡힌 것).
+- ✨ **② 구글 캘린더 무음 재로그인** — 토큰이 메모리에만 있어 재시작마다 로그인 필요했음. `AndroidCalendarSyncManager`에 **silent authorize**(`Identity.getAuthorizationClient(...).authorize()`, 동의 불필요 시 토큰 즉시 반환) 추가: `syncNow()`가 토큰 없으면 무음 확보, **401(만료) 시에도 무음 갱신 후 1회 재시도**. 명시적 로그아웃(`signOut`) 시엔 `signedOut` 플래그로 무음 재인가 차단(로그아웃 존중). 생성자에 `context` 추가(Koin.android 배선). ※ Supabase 쪽은 원래 SecureStore 세션 영속+refresh 갱신이 있어 문제 없음.
+- ✨ **③ 저장/추가 피드백** — 에디터 저장 버튼 → **"저장되었습니다 ✓"** 스낵바(빈 메모면 "저장할 내용이 없어요."), 에디터·캘린더 상세의 할 일 추가 → **"할 일이 추가되었습니다 ✓"**(빈 입력 안내 포함). `NoteEditorViewModel.save(onSaved)` 콜백화, 캘린더 Scaffold에 SnackbarHost 신설.
+- ✨ **④ 당겨서 새로고침 → 동기화** — 캘린더 홈을 `PullToRefreshBox`(M3 공식, commonMain)로 감쌈: 당기면 **클라우드(Supabase) syncNow + (토글 ON이면) 구글 캘린더 push** 실행, 결과를 스낵바로("동기화 완료 ✓"/실패/꺼짐 안내). 1단·2단 배치 모두 적용.
+- ✨ **⑤ 비슷한 메모 실시간 추천** — 에디터 입력(제목+본문)을 450ms 디바운스 → **로컬 FTS OR 매칭**(`toFtsMatchAny`: 토큰화→빈도·길이 상위 8개→`키워드* OR ...`)으로 **다른 날의 유사 메모 최대 5건**을 "비슷한 메모" 섹션에 표시, 탭하면 그 메모로 이동. 자기 자신·같은 날짜 제외. 오프라인 우선·API 비용 0(OpenAI 임베딩 없이 즉시 동작 — 필요 시 추후 업그레이드 여지). 자산: `NoteRepository.searchRelated` + `FindRelatedNotesUseCase` + 에디터 `relatedNotes` StateFlow + `RelatedNoteRow`. 테스트 +2(`RelatedNotesTest`: OR 매칭 정제·자기/같은날 제외).
+- **변경 파일**: `ui/notes/{NoteEditorScreen,NoteEditorViewModel}.kt` · `ui/calendar/CalendarScreen.kt` · `ui/navigation/DayNoteNavHost.kt`(에디터 onOpenNote 배선) · `data/repository/{NoteRepository,NoteRepositoryImpl}.kt` · `domain/usecase/NoteUseCases.kt` · `di/{Koin,Koin.android}.kt` · `androidMain/data/sync/AndroidCalendarSyncManager.kt` · `desktopTest/.../RelatedNotesTest.kt`(신규).
+- ⚠️ **기기 검증 권장**: ① 메모 탭에서 새 메모+할 일 작성 → 캘린더 오늘 칸/상세에 표시 확인 ② 앱 재시작 후 로그인 없이 "지금 동기화"/당겨서 새로고침 동작 확인(최초 1회 동의는 여전히 필요) ③ 폰에서 당겨서 새로고침 제스처 ④ 에디터에서 몇 단어 입력 시 "비슷한 메모" 노출.
+
+**막힘 없음. 기다리는 것 = Play 개발자 계정 승인뿐.** 코드/자산은 제출 준비 끝.
 
 ### 🎨 캘린더 재설계 「Warm Journal」(방향 B) 적용 ✅ (2026-07-01)
 - **결정**: 두 제안(A 아틀라스 도판 / B 따뜻한 다이어리) 중 **방향 B 채택** — 부드러운 라운드 타일 + 밀도 점 + 제목 텍스트 유지. (사용자 확인: "제목 미리보기는 유지" → 점+글자 병행안으로 착수.)

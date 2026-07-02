@@ -31,6 +31,7 @@ import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveTasksByDateUseCase
+import com.kangtaeyoung.daynote.domain.usecase.FindRelatedNotesUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveUndatedNotesUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SearchNotesUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SetNotePinnedUseCase
@@ -89,6 +90,7 @@ val useCaseModule: Module = module {
     factory { ObserveUndatedNotesUseCase(get()) }
     factory { ObserveTasksByDateUseCase(get()) }
     factory { SearchNotesUseCase(get()) }
+    factory { FindRelatedNotesUseCase(get()) }
     factory { AddNoteUseCase(get()) }
     factory { UpdateNoteUseCase(get()) }
     factory { SetNotePinnedUseCase(get()) }
