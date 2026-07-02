@@ -51,6 +51,15 @@ fun Long.toHourMinuteLabel(tz: TimeZone = appTimeZone): String {
     return "${t.hour.toString().padStart(2, '0')}:${t.minute.toString().padStart(2, '0')}"
 }
 
+/**
+ * ISO 8601 연중 주차(W1~W53) — "그 주의 목요일이 속한 해의 몇 번째 주"로 정의된다.
+ * (연초·연말 경계 주도 표준대로: 예. 2027-01-01(금)은 2026년 W53.)
+ */
+fun LocalDate.isoWeekNumber(): Int {
+    val thursday = plus(4 - dayOfWeek.isoDayNumber, DateTimeUnit.DAY)
+    return (thursday.dayOfYear - 1) / 7 + 1
+}
+
 /** 이 날짜가 속한 주의 시작(월요일). */
 fun LocalDate.startOfWeek(): LocalDate {
     val shift = dayOfWeek.isoDayNumber - 1 // 월=1 → 0

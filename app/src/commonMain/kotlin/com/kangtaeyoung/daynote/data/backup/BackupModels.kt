@@ -50,6 +50,8 @@ data class BackupTask(
     val remoteId: String? = null,
     val syncStatus: String,
     val deletedAt: Long? = null,
+    // 기간 할 일 종료일(v5) — 기본 null 이라 이전 백업 파일도 그대로 복원된다.
+    val endDate: Long? = null,
 )
 
 fun NoteEntity.toBackup() = BackupNote(
@@ -61,9 +63,9 @@ fun BackupNote.toEntity() = NoteEntity(
 )
 
 fun TaskEntity.toBackup() = BackupTask(
-    id, noteId, text, isDone, dueDate, allDay, sortOrder, createdAt, updatedAt, remoteId, syncStatus, deletedAt,
+    id, noteId, text, isDone, dueDate, allDay, sortOrder, createdAt, updatedAt, remoteId, syncStatus, deletedAt, endDate,
 )
 
 fun BackupTask.toEntity() = TaskEntity(
-    id, noteId, text, isDone, dueDate, allDay, sortOrder, createdAt, updatedAt, remoteId, syncStatus, deletedAt,
+    id, noteId, text, isDone, dueDate, allDay, sortOrder, createdAt, updatedAt, remoteId, syncStatus, deletedAt, endDate,
 )

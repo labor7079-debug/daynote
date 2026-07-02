@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kangtaeyoung.daynote.core.movedToDate
 import com.kangtaeyoung.daynote.core.startOfDayMillis
+import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.domain.model.Task
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
@@ -23,6 +24,13 @@ import kotlinx.datetime.LocalDate
 /** 시간 지정 할 일은 시:분을 유지한 채 날짜만 [date] 로, 종일/날짜 없음은 그 날 자정으로. */
 internal fun Task.dueDateOn(date: LocalDate): Long =
     if (!allDay && dueDate != null) dueDate.movedToDate(date) else date.startOfDayMillis()
+
+/** 기간 할 일 이동/복사 시 종료일도 같은 간격만큼 함께 민다(하루짜리는 null 유지). */
+internal fun Task.endDateOn(date: LocalDate): Long? {
+    val end = endDate ?: return null
+    val oldStart = dueDate ?: return null
+    return end + (date.startOfDayMillis() - oldStart.toLocalDate().startOfDayMillis())
+}
 
 /** 일반 할 일(메모에 묶이지 않은) 목록 화면. 기간 필터는 메모 목록과 같은 [Period] 를 쓴다. */
 class TodoViewModel(
@@ -59,13 +67,17 @@ class TodoViewModel(
         viewModelScope.launch { deleteTask(id) }
     }
 
-    /** 길게 누름 메뉴 — 할 일을 다른 날짜로 이동(마감일 교체, 시각 유지). */
+    /** 길게 누름 메뉴 — 할 일을 다른 날짜로 이동(마감일 교체, 시각·기간 길이 유지). */
     fun moveToDate(task: Task, date: LocalDate) {
-        viewModelScope.launch { updateTask(task.copy(dueDate = task.dueDateOn(date))) }
+        viewModelScope.launch {
+            updateTask(task.copy(dueDate = task.dueDateOn(date), endDate = task.endDateOn(date)))
+        }
     }
 
-    /** 길게 누름 메뉴 — 할 일을 다른 날짜로 복사(미완료 새 항목). */
+    /** 길게 누름 메뉴 — 할 일을 다른 날짜로 복사(미완료 새 항목, 기간 길이 유지). */
     fun copyToDate(task: Task, date: LocalDate) {
-        viewModelScope.launch { addTask(task.text, task.noteId, task.dueDateOn(date), task.allDay) }
+        viewModelScope.launch {
+            addTask(task.text, task.noteId, task.dueDateOn(date), task.allDay, endDate = task.endDateOn(date))
+        }
     }
 }

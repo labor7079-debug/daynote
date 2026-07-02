@@ -46,6 +46,7 @@ fun TaskEntity.toDomain(): Task = Task(
     sortOrder = sortOrder,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    endDate = endDate,
 )
 
 fun Task.toEntity(updatedAt: Long = this.updatedAt): TaskEntity = TaskEntity(
@@ -61,4 +62,5 @@ fun Task.toEntity(updatedAt: Long = this.updatedAt): TaskEntity = TaskEntity(
     remoteId = null,
     syncStatus = SyncStatus.LOCAL_ONLY,
     deletedAt = null,
+    endDate = endDate,
 )

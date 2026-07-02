@@ -28,7 +28,14 @@ class TaskRepositoryImpl(
 
     override suspend fun getTask(id: String): Task? = dao.getById(id)?.toDomain()
 
-    override suspend fun addTask(text: String, noteId: String?, dueDate: Long?, allDay: Boolean, sortOrder: Int): Task {
+    override suspend fun addTask(
+        text: String,
+        noteId: String?,
+        dueDate: Long?,
+        allDay: Boolean,
+        endDate: Long?,
+        sortOrder: Int,
+    ): Task {
         val now = nowMillis()
         val task = Task(
             id = randomUuid(),
@@ -40,6 +47,8 @@ class TaskRepositoryImpl(
             sortOrder = sortOrder,
             createdAt = now,
             updatedAt = now,
+            // 종료일은 시작일 이후일 때만 의미가 있다(같거나 이전이면 하루짜리로 정규화).
+            endDate = endDate?.takeIf { dueDate != null && it > dueDate },
         )
         dao.upsert(task.toEntity())
         changes.notifyChanged()
@@ -55,6 +64,7 @@ class TaskRepositoryImpl(
                 isDone = task.isDone,
                 dueDate = task.dueDate,
                 allDay = task.allDay,
+                endDate = task.endDate?.takeIf { task.dueDate != null && it > task.dueDate!! },
                 sortOrder = task.sortOrder,
                 updatedAt = nowMillis(),
                 syncStatus = SyncStatus.PENDING,

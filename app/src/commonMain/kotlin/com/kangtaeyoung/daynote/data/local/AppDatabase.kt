@@ -28,7 +28,7 @@ import com.kangtaeyoung.daynote.data.local.entity.TaskEntity
         AppSettingEntity::class,
         AiResultEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @ConstructedBy(AppDatabaseConstructor::class)

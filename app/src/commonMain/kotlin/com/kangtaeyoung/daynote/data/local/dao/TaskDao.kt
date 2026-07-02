@@ -81,13 +81,15 @@ interface TaskDao {
     fun observeByNote(noteId: String): Flow<List<TaskEntity>>
 
     /**
-     * 특정 날짜(캘린더 동선)의 할 일. [dueDate] 를 [startOfDay, endOfDay) 로 조회한다.
+     * 특정 날짜(캘린더 동선)의 할 일 — **기간 겹침** 조회. 하루짜리(endDate=null)는 dueDate 가
+     * 구간에 들면, 기간 할 일은 [dueDate, endDate] 가 구간과 겹치면 잡힌다(캘린더 bar 표시).
      * 미완료 → 완료, 그다음 정렬순.
      */
     @Query(
         """
         SELECT * FROM tasks
-        WHERE dueDate >= :startOfDay AND dueDate < :endOfDay AND deletedAt IS NULL
+        WHERE dueDate IS NOT NULL AND deletedAt IS NULL
+          AND dueDate < :endOfDay AND COALESCE(endDate, dueDate) >= :startOfDay
         ORDER BY isDone ASC, sortOrder ASC, createdAt ASC
         """,
     )

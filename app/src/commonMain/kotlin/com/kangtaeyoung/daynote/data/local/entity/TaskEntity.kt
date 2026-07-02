@@ -31,4 +31,6 @@ data class TaskEntity(
     val remoteId: String? = null,
     val syncStatus: String = SyncStatus.LOCAL_ONLY,
     val deletedAt: Long? = null,
+    // 기간 할 일: 종료 날짜(자정 millis, nullable) — null 이면 하루짜리. v5 에서 추가(맨 뒤 유지).
+    val endDate: Long? = null,
 )

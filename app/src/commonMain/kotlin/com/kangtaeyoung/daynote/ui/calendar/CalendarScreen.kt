@@ -69,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kangtaeyoung.daynote.core.firstOfMonthPlusMonths
+import com.kangtaeyoung.daynote.core.isoWeekNumber
 import com.kangtaeyoung.daynote.core.monthGridDays
 import com.kangtaeyoung.daynote.core.startOfDayMillis
 import com.kangtaeyoung.daynote.core.toLocalDate
@@ -92,6 +93,7 @@ import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase
 import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
+import com.kangtaeyoung.daynote.ui.components.MiniCalendarDialog
 import com.kangtaeyoung.daynote.ui.components.TaskRow
 import com.kangtaeyoung.daynote.ui.components.TopDestination
 import com.kangtaeyoung.daynote.ui.components.WithItemActions
@@ -105,6 +107,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import org.koin.compose.koinInject
 
@@ -215,7 +218,13 @@ fun CalendarScreen(
             // 달력(헤더 + 그리드/아젠다) — 1단·2단 배치가 공유. 가로 스와이프로 이전/다음(왼쪽=다음, 오른쪽=이전).
             val calendarArea: @Composable () -> Unit = {
                 CalendarHeader(
-                    label = if (compact) "${visibleDays.first().monthNumber}월 ${visibleDays.first().dayOfMonth}일 주" else anchor.monthLabel(),
+                    // 주 단위 헤더엔 ISO 연중 주차(W27)를 병기한다.
+                    label = if (compact) {
+                        val first = visibleDays.first()
+                        "${first.monthNumber}월 ${first.dayOfMonth}일 주 (W${first.isoWeekNumber()})"
+                    } else {
+                        anchor.monthLabel()
+                    },
                     onPrev = goPrev,
                     onNext = goNext,
                     onToday = { anchor = today(); vm.selectDate(today()) },
@@ -256,6 +265,22 @@ fun CalendarScreen(
                 }
             }
 
+            // 상세 영역 좌우 스와이프 → 전날/다음날로 이동(왼쪽으로 밀기=다음날).
+            val detailSwipe = Modifier.pointerInput(Unit) {
+                var total = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { total = 0f },
+                    onDragEnd = {
+                        val threshold = 56.dp.toPx()
+                        when {
+                            total <= -threshold -> vm.selectDate(vm.selectedDate.value.plus(1, DateTimeUnit.DAY))
+                            total >= threshold -> vm.selectDate(vm.selectedDate.value.minus(1, DateTimeUnit.DAY))
+                        }
+                    },
+                    onHorizontalDrag = { _, dragAmount -> total += dragAmount },
+                )
+            }
+
             val detailArea: @Composable () -> Unit = {
                 DayDetail(
                     date = selectedDate,
@@ -264,12 +289,12 @@ fun CalendarScreen(
                     onOpenNote = onOpenNote,
                     onAddNote = { onAddNoteForDate(selectedDate.startOfDayMillis()) },
                     onDeleteNote = vm::removeNote,
-                    onAddTask = { text, allDay, hour, minute ->
+                    onAddTask = { text, allDay, hour, minute, endDate ->
                         // 추가 피드백: 실제 추가됐을 때만 확인 스낵바(빈 입력은 안내).
                         if (text.isBlank()) {
                             scope.launch { snackbarHostState.showSnackbar("할 일 내용을 입력하세요.") }
                         } else {
-                            vm.addTaskForSelectedDate(text, allDay, hour, minute)
+                            vm.addTaskForSelectedDate(text, allDay, hour, minute, endDate)
                             scope.launch { snackbarHostState.showSnackbar("할 일이 추가되었습니다 ✓") }
                         }
                     },
@@ -309,7 +334,8 @@ fun CalendarScreen(
                         VerticalDivider()
                         Column(
                             modifier = Modifier.weight(0.42f).fillMaxHeight().verticalScroll(rememberScrollState())
-                                .padding(top = 12.dp),
+                                .padding(top = 12.dp)
+                                .then(detailSwipe),
                         ) { detailArea() }
                     }
                 } else {
@@ -317,7 +343,9 @@ fun CalendarScreen(
                     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                         calendarArea()
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                        detailArea()
+                        Box(modifier = Modifier.fillMaxWidth().then(detailSwipe)) {
+                            detailArea()
+                        }
                     }
                 }
             }
@@ -428,7 +456,8 @@ private fun DayCell(
     val tileColor = when {
         !inMonth -> Color.Transparent
         isSelected -> MaterialTheme.colorScheme.primaryContainer
-        isWeekend -> MaterialTheme.colorScheme.secondaryContainer
+        // 공휴일도 주말과 같은 음영 타일(관공서 공휴일 = 쉬는 날).
+        isWeekend || holidayName != null -> MaterialTheme.colorScheme.secondaryContainer
         else -> MaterialTheme.colorScheme.surface
     }
     Column(
@@ -462,6 +491,9 @@ private fun DayCell(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        // 기간 할 일(여러 날)은 이어지는 bar 조각으로 — 시작/끝 칸만 모서리를 둥글려 걸친 모양을 만든다.
+        val (ranged, single) = tasks.partition { it.endDate != null }
+        ranged.take(2).forEach { task -> TaskBarSegment(task, day) }
         notes.take(2).forEach { note ->
             Text(
                 text = note.title.ifBlank { "(제목 없음)" },
@@ -473,9 +505,11 @@ private fun DayCell(
                 modifier = Modifier.fillMaxWidth().clickable { onOpenNote(note.id) },
             )
         }
-        // 할 일은 개수가 아니라 내용을 보여준다 — 메모와 구분되는 옅은 박스(접힘/펼침 표기 통일).
-        tasks.take(2).forEach { task -> TaskLineChip(task) }
-        val more = (notes.size - 2).coerceAtLeast(0) + (tasks.size - 2).coerceAtLeast(0)
+        // 하루짜리 할 일은 내용을 옅은 박스로(접힘/펼침 표기 통일).
+        single.take(2).forEach { task -> TaskLineChip(task) }
+        val more = (notes.size - 2).coerceAtLeast(0) +
+            (single.size - 2).coerceAtLeast(0) +
+            (ranged.size - 2).coerceAtLeast(0)
         if (more > 0) {
             Text(
                 text = "+${more}개 더",
@@ -488,12 +522,18 @@ private fun DayCell(
 
 /**
  * 달력 칸 안의 할 일 한 줄 — 첨부 컨셉대로 옅은 회색 박스로 메모(맨글자)와 구분한다.
- * 첫 줄만 한 줄 말줄임으로 간략 표기, 완료된 할 일은 취소선.
+ * 첫 줄만 한 줄 말줄임으로 간략 표기, 완료된 할 일은 취소선. 기간 할 일은 "9/14~9/16" 병기.
  */
 @Composable
 private fun TaskLineChip(task: Task) {
+    val head = task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { "(내용 없음)" }
+    val range = task.endDate?.let { end ->
+        val s = (task.dueDate ?: task.createdAt).toLocalDate()
+        val e = end.toLocalDate()
+        "${s.monthNumber}/${s.dayOfMonth}~${e.monthNumber}/${e.dayOfMonth} "
+    }.orEmpty()
     Text(
-        text = task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { "(내용 없음)" },
+        text = range + head,
         style = MaterialTheme.typography.labelSmall,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
@@ -504,6 +544,40 @@ private fun TaskLineChip(task: Task) {
             .padding(top = 2.dp)
             .clip(RoundedCornerShape(5.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+    )
+}
+
+/**
+ * 월 달력 칸의 기간 할 일 bar 조각 — 걸치는 모든 날짜 칸에 같은 슬레이트 bar 를 깔고,
+ * 시작 칸만 왼쪽·끝 칸만 오른쪽 모서리를 둥글려 하나의 bar 가 이어진 것처럼 보이게 한다.
+ * 텍스트는 시작 칸에만 표기(중간 칸은 bar 만).
+ */
+@Composable
+private fun TaskBarSegment(task: Task, day: LocalDate) {
+    val start = (task.dueDate ?: task.createdAt).toLocalDate()
+    val end = task.endDate?.toLocalDate() ?: start
+    val isStart = day == start
+    val isEnd = day == end
+    val shape = RoundedCornerShape(
+        topStart = if (isStart) 5.dp else 0.dp,
+        bottomStart = if (isStart) 5.dp else 0.dp,
+        topEnd = if (isEnd) 5.dp else 0.dp,
+        bottomEnd = if (isEnd) 5.dp else 0.dp,
+    )
+    val barColor = MaterialTheme.colorScheme.primary.copy(alpha = if (task.isDone) 0.45f else 1f)
+    Text(
+        text = if (isStart) task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { " " } else " ",
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textDecoration = if (task.isDone) TextDecoration.LineThrough else null,
+        color = MaterialTheme.colorScheme.onPrimary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp)
+            .clip(shape)
+            .background(barColor)
             .padding(horizontal = 5.dp, vertical = 2.dp),
     )
 }
@@ -585,7 +659,8 @@ private fun WeekAgenda(
             val holidayName = KoreanHolidays.nameOf(day)
             val tileColor = when {
                 day == selected -> MaterialTheme.colorScheme.primaryContainer
-                isWeekend -> MaterialTheme.colorScheme.secondaryContainer
+                // 공휴일도 주말과 같은 음영 타일.
+                isWeekend || holidayName != null -> MaterialTheme.colorScheme.secondaryContainer
                 else -> MaterialTheme.colorScheme.surface
             }
             Row(
@@ -668,7 +743,7 @@ private fun DayDetail(
     onOpenNote: (String) -> Unit,
     onAddNote: () -> Unit,
     onDeleteNote: (String) -> Unit,
-    onAddTask: (String, Boolean, Int, Int) -> Unit,
+    onAddTask: (String, Boolean, Int, Int, LocalDate?) -> Unit,
     onToggleTask: (String) -> Unit,
     onDeleteTask: (String) -> Unit,
     onMoveNote: (Note, LocalDate) -> Unit,
@@ -745,7 +820,7 @@ private fun DayDetail(
                 onCopyTo = { d -> onCopyTask(task, d) },
             )
         }
-        TaskQuickAdd(onAdd = onAddTask)
+        TaskQuickAdd(selectedDate = date, onAdd = onAddTask)
         Box(modifier = Modifier.heightIn(min = 24.dp))
     }
 }
@@ -824,11 +899,14 @@ private fun DeleteX(onDelete: () -> Unit) {
 }
 
 @Composable
-private fun TaskQuickAdd(onAdd: (String, Boolean, Int, Int) -> Unit) {
+private fun TaskQuickAdd(selectedDate: LocalDate, onAdd: (String, Boolean, Int, Int, LocalDate?) -> Unit) {
     var text by remember { mutableStateOf("") }
     var allDay by remember { mutableStateOf(true) }
     var hour by remember { mutableStateOf(9) }
     var minute by remember { mutableStateOf(0) }
+    // 기간 할 일: 종료일(시작=선택 날짜). null 이면 하루짜리.
+    var endDate by remember(selectedDate) { mutableStateOf<LocalDate?>(null) }
+    var showEndPicker by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -840,8 +918,9 @@ private fun TaskQuickAdd(onAdd: (String, Boolean, Int, Int) -> Unit) {
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = {
-                onAdd(text, allDay, hour, minute)
+                onAdd(text, allDay, hour, minute, endDate)
                 text = ""
+                endDate = null
             }) { Text("추가") }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -853,6 +932,31 @@ private fun TaskQuickAdd(onAdd: (String, Boolean, Int, Int) -> Unit) {
                 NumberDropdown(label = "분", value = minute, range = 0..59, onValue = { minute = it }, modifier = Modifier.width(96.dp))
             }
         }
+        // 여러 날에 걸친 일이면 종료일을 지정한다(캘린더에 bar 로 걸쳐 표시).
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            TextButton(onClick = { showEndPicker = true }) {
+                Text(
+                    endDate?.let { "기간: ~ ${it.monthNumber}월 ${it.dayOfMonth}일" } ?: "기간: 하루 (종료일 지정)",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (endDate != null) {
+                TextButton(onClick = { endDate = null }) { Text("지우기", style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+    }
+
+    if (showEndPicker) {
+        MiniCalendarDialog(
+            initial = endDate ?: selectedDate,
+            title = "종료일 선택 (시작: ${selectedDate.monthNumber}월 ${selectedDate.dayOfMonth}일)",
+            pickMode = true,
+            onPick = { picked ->
+                endDate = picked.takeIf { it > selectedDate }
+                showEndPicker = false
+            },
+            onDismiss = { showEndPicker = false },
+        )
     }
 }
 

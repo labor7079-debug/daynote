@@ -55,7 +55,19 @@ fun TaskRow(
         ) {
             Checkbox(checked = task.isDone, onCheckedChange = { onToggle() })
             val due = task.dueDate
-            if (!task.allDay && due != null) {
+            val end = task.endDate
+            if (end != null && due != null) {
+                // 기간 할 일 — 시작~종료를 함께 표기(시각 지정이면 시작 시각 포함).
+                val s = due.toLocalDate()
+                val e = end.toLocalDate()
+                val startLabel = if (task.allDay) "${s.monthNumber}/${s.dayOfMonth}" else "${s.monthNumber}/${s.dayOfMonth} ${due.toHourMinuteLabel()}"
+                Text(
+                    text = "$startLabel~${e.monthNumber}/${e.dayOfMonth}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 6.dp),
+                )
+            } else if (!task.allDay && due != null) {
                 Text(
                     text = due.toHourMinuteLabel(),
                     style = MaterialTheme.typography.labelMedium,

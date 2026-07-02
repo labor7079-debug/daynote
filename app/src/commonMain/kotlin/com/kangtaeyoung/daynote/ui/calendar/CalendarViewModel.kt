@@ -27,7 +27,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.plus
 
 /**
  * 캘린더(홈) 화면 상태/동작. "날짜 위에 메모가 얹힌다"가 중심 은유다.
@@ -61,11 +63,28 @@ class CalendarViewModel(
         .map { notes -> notes.groupBy { it.date?.toLocalDate() ?: it.createdAt.toLocalDate() } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
-    /** 보이는 범위의 할 일을 날짜별로 묶은 맵 — 달력 칸 밀도 점(할일) 표시용. */
+    /**
+     * 보이는 범위의 할 일을 날짜별로 묶은 맵 — 달력 칸 표시용.
+     * 기간 할 일(endDate 있음)은 걸치는 **모든 날짜**에 넣어 bar 로 이어 보이게 한다.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val tasksByDate: StateFlow<Map<LocalDate, List<Task>>> = visibleRange
         .flatMapLatest { (start, end) -> observeTasksByDate(start, end) }
-        .map { tasks -> tasks.groupBy { (it.dueDate ?: it.createdAt).toLocalDate() } }
+        .map { tasks ->
+            val byDate = mutableMapOf<LocalDate, MutableList<Task>>()
+            tasks.forEach { task ->
+                val start = (task.dueDate ?: task.createdAt).toLocalDate()
+                val end = task.endDate?.toLocalDate()?.takeIf { it > start } ?: start
+                var day = start
+                var guard = 0
+                while (day <= end && guard < MAX_SPAN_DAYS) {
+                    byDate.getOrPut(day) { mutableListOf() }.add(task)
+                    day = day.plus(1, DateTimeUnit.DAY)
+                    guard++
+                }
+            }
+            byDate
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -89,12 +108,14 @@ class CalendarViewModel(
 
     /**
      * 선택 날짜에 할 일 추가. [allDay]=true 면 그 날짜 종일, false 면 [hour]:[minute] 시각으로 dueDate 주입.
+     * [endDate] 를 주면 여러 날에 걸친 기간 할 일(선택 날짜 이후여야 유효).
      */
-    fun addTaskForSelectedDate(text: String, allDay: Boolean, hour: Int, minute: Int) {
+    fun addTaskForSelectedDate(text: String, allDay: Boolean, hour: Int, minute: Int, endDate: LocalDate? = null) {
         if (text.isBlank()) return
         val date = _selectedDate.value
         val due = if (allDay) date.startOfDayMillis() else date.atTimeMillis(hour, minute)
-        viewModelScope.launch { addTask(text, noteId = null, dueDate = due, allDay = allDay) }
+        val end = endDate?.takeIf { it > date }?.startOfDayMillis()
+        viewModelScope.launch { addTask(text, noteId = null, dueDate = due, allDay = allDay, endDate = end) }
     }
 
     fun toggle(taskId: String) {
@@ -123,11 +144,27 @@ class CalendarViewModel(
     private fun Task.dueDateOn(date: LocalDate): Long =
         if (!allDay && dueDate != null) dueDate.movedToDate(date) else date.startOfDayMillis()
 
+    /** 기간 할 일 이동/복사 시 종료일도 같은 간격만큼 함께 민다. */
+    private fun Task.endDateOn(date: LocalDate): Long? {
+        val end = endDate ?: return null
+        val oldStart = dueDate ?: return null
+        return end + (date.startOfDayMillis() - oldStart.toLocalDate().startOfDayMillis())
+    }
+
     fun moveTaskTo(task: Task, date: LocalDate) {
-        viewModelScope.launch { updateTask(task.copy(dueDate = task.dueDateOn(date))) }
+        viewModelScope.launch {
+            updateTask(task.copy(dueDate = task.dueDateOn(date), endDate = task.endDateOn(date)))
+        }
     }
 
     fun copyTaskTo(task: Task, date: LocalDate) {
-        viewModelScope.launch { addTask(task.text, task.noteId, task.dueDateOn(date), task.allDay) }
+        viewModelScope.launch {
+            addTask(task.text, task.noteId, task.dueDateOn(date), task.allDay, endDate = task.endDateOn(date))
+        }
+    }
+
+    private companion object {
+        /** 기간 할 일이 달력 맵을 폭주시키지 않게 한 건당 확장 일수 상한. */
+        const val MAX_SPAN_DAYS = 62
     }
 }

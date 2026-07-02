@@ -62,4 +62,7 @@ fun TaskRow.toEntity(existing: TaskEntity?): TaskEntity = TaskEntity(
     remoteId = existing?.remoteId,
     syncStatus = existing?.syncStatus ?: SyncStatus.SYNCED,
     deletedAt = deletedAt,
+    // endDate 는 아직 서버 컬럼이 없어 push 하지 않는다 — pull 이 로컬 값을 지우지 않게 보존.
+    // (멀티기기에서 기간을 동기화하려면 Supabase tasks 에 end_date 컬럼 추가 후 TaskRow 에 반영.)
+    endDate = existing?.endDate,
 )

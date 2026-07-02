@@ -23,6 +23,13 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+/** v4 → v5: tasks 에 endDate 컬럼 추가(여러 날에 걸친 기간 할 일). 기존 행은 하루짜리(null). */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE tasks ADD COLUMN endDate INTEGER")
+    }
+}
+
 /** v3 → v4: AI 결과 테이블 추가(Phase 4-B). noteId·createdAt 인덱스 포함. */
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(connection: SQLiteConnection) {

@@ -28,9 +28,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.plus
 import org.koin.core.context.GlobalContext
 
 /**
@@ -104,7 +106,19 @@ class DayNoteMonthWidgetProvider : AppWidgetProvider() {
                 .getOrNull().orEmpty()
             val busyDays: Set<LocalDate> = buildSet {
                 notes.forEach { n -> n.date?.let { add(it.toLocalDate()) } }
-                tasks.forEach { t -> t.dueDate?.let { add(it.toLocalDate()) } }
+                tasks.forEach { t ->
+                    val startMillis = t.dueDate ?: return@forEach
+                    val start = startMillis.toLocalDate()
+                    // 기간 할 일은 걸치는 모든 날짜를 표시(상한으로 폭주 방지).
+                    val end = t.endDate?.toLocalDate()?.takeIf { it > start } ?: start
+                    var d = start
+                    var guard = 0
+                    while (d <= end && guard < 62) {
+                        add(d)
+                        d = d.plus(1, DateTimeUnit.DAY)
+                        guard++
+                    }
+                }
             }
 
             // 미니 월 그리드(6주 x 7일)를 코드에서 채운다.

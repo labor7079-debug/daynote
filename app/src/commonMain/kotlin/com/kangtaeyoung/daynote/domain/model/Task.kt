@@ -16,4 +16,6 @@ data class Task(
     val sortOrder: Int = 0,
     val createdAt: Long,
     val updatedAt: Long,
+    /** 기간 할 일의 종료 날짜(자정 millis). null 이면 하루짜리. 캘린더에서 bar 로 걸쳐 표시. */
+    val endDate: Long? = null,
 )

@@ -22,16 +22,20 @@ class ObserveTasksByDateUseCase(private val repo: TaskRepository) {
         repo.observeTasksByDueDate(startOfDay, endOfDay)
 }
 
-/** 새 할 일 추가. 빈 텍스트는 무시(null). [allDay]=false 면 [dueDate] 는 특정 시각. */
+/**
+ * 새 할 일 추가. 빈 텍스트는 무시(null). [allDay]=false 면 [dueDate] 는 특정 시각.
+ * [endDate] 가 있으면 여러 날에 걸친 기간 할 일.
+ */
 class AddTaskUseCase(private val repo: TaskRepository) {
     suspend operator fun invoke(
         text: String,
         noteId: String? = null,
         dueDate: Long? = null,
         allDay: Boolean = true,
+        endDate: Long? = null,
     ): Task? {
         if (text.isBlank()) return null
-        return repo.addTask(text.trim(), noteId, dueDate, allDay)
+        return repo.addTask(text.trim(), noteId, dueDate, allDay, endDate)
     }
 }
 

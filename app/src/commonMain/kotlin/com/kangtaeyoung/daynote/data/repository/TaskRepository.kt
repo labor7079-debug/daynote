@@ -19,12 +19,16 @@ interface TaskRepository {
 
     suspend fun getTask(id: String): Task?
 
-    /** 새 할 일 생성 — id·타임스탬프를 구현체가 채운다. [allDay]=false 면 [dueDate] 는 특정 시각. */
+    /**
+     * 새 할 일 생성 — id·타임스탬프를 구현체가 채운다. [allDay]=false 면 [dueDate] 는 특정 시각.
+     * [endDate] 가 있으면 여러 날에 걸친 기간 할 일(캘린더에 bar 로 표시).
+     */
     suspend fun addTask(
         text: String,
         noteId: String? = null,
         dueDate: Long? = null,
         allDay: Boolean = true,
+        endDate: Long? = null,
         sortOrder: Int = 0,
     ): Task
 
