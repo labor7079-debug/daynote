@@ -115,9 +115,9 @@ class SettingsViewModel(
         _hasApiKey.value = false
     }
 
-    // --- AI 제목 자동생성 토글(저장 시 제목 비면 자동 생성) ---
+    // --- AI 제목 자동생성 토글(저장 시 제목 비면 자동 생성, 기본 켜짐) ---
     val autoTitle: StateFlow<Boolean> = settings.observeAutoTitle()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     fun setAutoTitle(enabled: Boolean) {
         viewModelScope.launch { settings.setAutoTitle(enabled) }

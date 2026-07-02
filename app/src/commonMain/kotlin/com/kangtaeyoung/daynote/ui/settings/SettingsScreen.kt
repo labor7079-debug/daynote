@@ -411,7 +411,7 @@ private fun ApiKeySection(
         Switch(checked = autoTitle, onCheckedChange = onAutoTitleChange)
     }
     Text(
-        "켜면 제목 없이 저장할 때 본문을 근거로 제목을 자동 생성합니다. 키가 없으면 본문 첫 줄을 씁니다. (에디터의 ‘✨ 제목’ 버튼은 토글과 무관하게 항상 사용 가능)",
+        "제목 없이 저장하면 본문을 근거로 AI 가 제목을 자동 생성합니다(기본 켜짐). 키가 없으면 본문 첫 줄을 씁니다. (에디터의 ‘✨ 제목’ 버튼은 토글과 무관하게 항상 사용 가능)",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

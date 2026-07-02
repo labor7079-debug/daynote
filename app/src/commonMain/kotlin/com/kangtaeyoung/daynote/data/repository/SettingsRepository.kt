@@ -17,7 +17,7 @@ interface SettingsRepository {
     fun observeSyncEnabled(): Flow<Boolean>
     suspend fun setSyncEnabled(enabled: Boolean)
 
-    // AI 제목 자동생성 토글(저장 시 제목 비면 자동 생성) — 기본 꺼짐
+    // AI 제목 자동생성 토글(저장 시 제목 비면 자동 생성) — 기본 켜짐
     fun observeAutoTitle(): Flow<Boolean>
     suspend fun isAutoTitleEnabled(): Boolean
     suspend fun setAutoTitle(enabled: Boolean)
@@ -59,11 +59,13 @@ class SettingsRepositoryImpl(
         dao.put(AppSettingEntity(KEY_SYNC_ENABLED, enabled.toString()))
     }
 
+    // 기본 켜짐: 값이 없으면(=미설정) true, 명시적으로 "false" 일 때만 끔(알림 토글과 같은 정책).
+    // 제목 없이 저장하면 AI(키 없으면 본문 첫 줄)로 자동 생성된다.
     override fun observeAutoTitle(): Flow<Boolean> =
-        dao.observe(KEY_AUTO_TITLE).map { it == "true" }
+        dao.observe(KEY_AUTO_TITLE).map { it != "false" }
 
     override suspend fun isAutoTitleEnabled(): Boolean =
-        dao.get(KEY_AUTO_TITLE) == "true"
+        dao.get(KEY_AUTO_TITLE) != "false"
 
     override suspend fun setAutoTitle(enabled: Boolean) {
         dao.put(AppSettingEntity(KEY_AUTO_TITLE, enabled.toString()))
