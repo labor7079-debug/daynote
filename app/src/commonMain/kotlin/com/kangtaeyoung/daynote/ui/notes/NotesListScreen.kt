@@ -25,9 +25,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.domain.model.Note
+import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SetNotePinnedUseCase
+import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
 import com.kangtaeyoung.daynote.ui.components.DateGroupHeader
 import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
 import com.kangtaeyoung.daynote.ui.components.NoteListItem
@@ -48,7 +50,9 @@ fun NotesListScreen(
     val observeNotes = koinInject<ObserveNotesUseCase>()
     val deleteNote = koinInject<DeleteNoteUseCase>()
     val setPinned = koinInject<SetNotePinnedUseCase>()
-    val vm = viewModel { NotesListViewModel(observeNotes, deleteNote, setPinned) }
+    val updateNote = koinInject<UpdateNoteUseCase>()
+    val addNote = koinInject<AddNoteUseCase>()
+    val vm = viewModel { NotesListViewModel(observeNotes, deleteNote, setPinned, updateNote, addNote) }
     val notes by vm.notes.collectAsState()
     val period by vm.period.collectAsState()
 
@@ -101,7 +105,13 @@ fun NotesListScreen(
                             DateGroupHeader(date, dayNotes.size)
                         }
                         items(dayNotes, key = { it.id }) { note ->
-                            NoteListItem(note = note, onClick = { onOpenNote(note.id) })
+                            NoteListItem(
+                                note = note,
+                                onClick = { onOpenNote(note.id) },
+                                onMoveTo = { date -> vm.moveToDate(note, date) },
+                                onCopyTo = { date -> vm.copyToDate(note, date) },
+                                onDelete = { vm.delete(note.id) },
+                            )
                         }
                     }
                 }

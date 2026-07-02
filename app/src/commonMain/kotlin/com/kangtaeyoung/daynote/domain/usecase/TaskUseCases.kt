@@ -35,6 +35,11 @@ class AddTaskUseCase(private val repo: TaskRepository) {
     }
 }
 
+/** 기존 할 일 갱신(텍스트·마감일·정렬 등) — updatedAt 은 구현체가 찍는다. */
+class UpdateTaskUseCase(private val repo: TaskRepository) {
+    suspend operator fun invoke(task: Task) = repo.updateTask(task)
+}
+
 class ToggleTaskUseCase(private val repo: TaskRepository) {
     suspend operator fun invoke(id: String) = repo.toggleDone(id)
 }

@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.sp
 import com.kangtaeyoung.daynote.core.firstOfMonthPlusMonths
 import com.kangtaeyoung.daynote.core.monthGridDays
 import com.kangtaeyoung.daynote.core.startOfDayMillis
+import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.core.today
 import com.kangtaeyoung.daynote.core.toMillisRange
 import com.kangtaeyoung.daynote.core.weekDays
@@ -79,15 +80,21 @@ import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncState
 import com.kangtaeyoung.daynote.domain.model.Note
 import com.kangtaeyoung.daynote.domain.model.Task
+import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveTasksByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
+import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
+import com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase
 import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
 import com.kangtaeyoung.daynote.ui.components.TaskRow
 import com.kangtaeyoung.daynote.ui.components.TopDestination
+import com.kangtaeyoung.daynote.ui.components.WithItemActions
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import com.kangtaeyoung.daynote.ui.theme.SettingsGearIcon
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.datetime.DateTimeUnit
@@ -119,8 +126,14 @@ fun CalendarScreen(
     val toggleTask = koinInject<ToggleTaskUseCase>()
     val deleteTask = koinInject<DeleteTaskUseCase>()
     val deleteNote = koinInject<DeleteNoteUseCase>()
+    val updateNote = koinInject<UpdateNoteUseCase>()
+    val addNote = koinInject<AddNoteUseCase>()
+    val updateTask = koinInject<UpdateTaskUseCase>()
     val vm = viewModel {
-        CalendarViewModel(observeNotesByDate, observeTasksByDate, addTask, toggleTask, deleteTask, deleteNote)
+        CalendarViewModel(
+            observeNotesByDate, observeTasksByDate, addTask, toggleTask, deleteTask, deleteNote,
+            updateNote, addNote, updateTask,
+        )
     }
 
     val selectedDate by vm.selectedDate.collectAsState()
@@ -260,6 +273,22 @@ fun CalendarScreen(
                     },
                     onToggleTask = vm::toggle,
                     onDeleteTask = vm::removeTask,
+                    onMoveNote = { note, d ->
+                        vm.moveNoteTo(note, d)
+                        scope.launch { snackbarHostState.showSnackbar("메모를 ${d.monthNumber}월 ${d.dayOfMonth}일로 이동했습니다 ✓") }
+                    },
+                    onCopyNote = { note, d ->
+                        vm.copyNoteTo(note, d)
+                        scope.launch { snackbarHostState.showSnackbar("메모를 ${d.monthNumber}월 ${d.dayOfMonth}일에 복사했습니다 ✓") }
+                    },
+                    onMoveTask = { task, d ->
+                        vm.moveTaskTo(task, d)
+                        scope.launch { snackbarHostState.showSnackbar("할 일을 ${d.monthNumber}월 ${d.dayOfMonth}일로 이동했습니다 ✓") }
+                    },
+                    onCopyTask = { task, d ->
+                        vm.copyTaskTo(task, d)
+                        scope.launch { snackbarHostState.showSnackbar("할 일을 ${d.monthNumber}월 ${d.dayOfMonth}일에 복사했습니다 ✓") }
+                    },
                 )
             }
 
@@ -591,6 +620,10 @@ private fun DayDetail(
     onAddTask: (String, Boolean, Int, Int) -> Unit,
     onToggleTask: (String) -> Unit,
     onDeleteTask: (String) -> Unit,
+    onMoveNote: (Note, LocalDate) -> Unit,
+    onCopyNote: (Note, LocalDate) -> Unit,
+    onMoveTask: (Task, LocalDate) -> Unit,
+    onCopyTask: (Task, LocalDate) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         // 날짜 헤더 — 세리프 + 클레이 스와시(캘린더 헤더와 통일).
@@ -629,14 +662,26 @@ private fun DayDetail(
             )
         }
         notes.forEach { note ->
-            NoteDetailRow(note = note, onOpen = { onOpenNote(note.id) }, onDelete = { onDeleteNote(note.id) })
+            NoteDetailRow(
+                note = note,
+                onOpen = { onOpenNote(note.id) },
+                onDelete = { onDeleteNote(note.id) },
+                onMoveTo = { d -> onMoveNote(note, d) },
+                onCopyTo = { d -> onCopyNote(note, d) },
+            )
         }
 
         Spacer(Modifier.height(8.dp))
 
         SectionLabel("TO-DO")
         tasks.forEach { task ->
-            TaskRow(task = task, onToggle = { onToggleTask(task.id) }, onDelete = { onDeleteTask(task.id) })
+            TaskRow(
+                task = task,
+                onToggle = { onToggleTask(task.id) },
+                onDelete = { onDeleteTask(task.id) },
+                onMoveTo = { d -> onMoveTask(task, d) },
+                onCopyTo = { d -> onCopyTask(task, d) },
+            )
         }
         TaskQuickAdd(onAdd = onAddTask)
         Box(modifier = Modifier.heightIn(min = 24.dp))
@@ -654,37 +699,54 @@ private fun SectionLabel(text: String) {
     )
 }
 
-/** 상세의 메모 한 줄 — 부드러운 웜 타일. 핀은 굵게. 삭제는 절제된 ✕. */
+/**
+ * 상세의 메모 한 줄 — 부드러운 웜 타일. 핀은 굵게. 삭제는 절제된 ✕.
+ * 길게 누르면 이동/복사/삭제 메뉴([WithItemActions]).
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NoteDetailRow(note: Note, onOpen: () -> Unit, onDelete: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onOpen)
-            .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                note.title.ifBlank { "(제목 없음)" },
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (note.isPinned) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (note.content.isNotBlank()) {
+private fun NoteDetailRow(
+    note: Note,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit,
+    onMoveTo: (LocalDate) -> Unit,
+    onCopyTo: (LocalDate) -> Unit,
+) {
+    WithItemActions(
+        calendarDate = (note.date ?: note.createdAt).toLocalDate(),
+        onMoveTo = onMoveTo,
+        onCopyTo = onCopyTo,
+        onDelete = onDelete,
+    ) { _, openMenu ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .combinedClickable(onClick = onOpen, onLongClick = openMenu)
+                .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    note.content.trim(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    note.title.ifBlank { "(제목 없음)" },
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (note.isPinned) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (note.content.isNotBlank()) {
+                    Text(
+                        note.content.trim(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
+            DeleteX(onDelete)
         }
-        DeleteX(onDelete)
     }
 }
 

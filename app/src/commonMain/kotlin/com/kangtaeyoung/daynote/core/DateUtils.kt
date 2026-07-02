@@ -39,6 +39,12 @@ fun Long.toLocalDate(tz: TimeZone = appTimeZone): LocalDate =
 fun LocalDate.atTimeMillis(hour: Int, minute: Int, tz: TimeZone = appTimeZone): Long =
     LocalDateTime(year, monthNumber, dayOfMonth, hour, minute).toInstant(tz).toEpochMilliseconds()
 
+/** 이 시각(epoch millis)의 '시:분'은 유지한 채 날짜만 [date] 로 옮긴다. (할 일 날짜 이동/복사용) */
+fun Long.movedToDate(date: LocalDate, tz: TimeZone = appTimeZone): Long {
+    val t = Instant.fromEpochMilliseconds(this).toLocalDateTime(tz)
+    return date.atTimeMillis(t.hour, t.minute, tz)
+}
+
 /** epoch millis → "HH:mm" 라벨. (시간 지정 할 일 표시용) */
 fun Long.toHourMinuteLabel(tz: TimeZone = appTimeZone): String {
     val t = Instant.fromEpochMilliseconds(this).toLocalDateTime(tz)

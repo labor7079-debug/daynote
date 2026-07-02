@@ -98,6 +98,7 @@ val useCaseModule: Module = module {
     factory { ObserveNoteTasksUseCase(get()) }
     factory { ObserveGeneralTasksUseCase(get()) }
     factory { AddTaskUseCase(get()) }
+    factory { com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase(get()) }
     factory { ToggleTaskUseCase(get()) }
     factory { DeleteTaskUseCase(get()) }
     factory { RunAiActionUseCase(get()) }

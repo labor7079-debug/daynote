@@ -33,6 +33,7 @@ import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveGeneralTasksUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
+import com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase
 import com.kangtaeyoung.daynote.ui.components.DateGroupHeader
 import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
 import com.kangtaeyoung.daynote.ui.components.Period
@@ -51,7 +52,8 @@ fun TodoScreen(
     val addTask = koinInject<AddTaskUseCase>()
     val toggleTask = koinInject<ToggleTaskUseCase>()
     val deleteTask = koinInject<DeleteTaskUseCase>()
-    val vm = viewModel { TodoViewModel(observeGeneralTasks, addTask, toggleTask, deleteTask) }
+    val updateTask = koinInject<UpdateTaskUseCase>()
+    val vm = viewModel { TodoViewModel(observeGeneralTasks, addTask, toggleTask, deleteTask, updateTask) }
     val tasks by vm.tasks.collectAsState()
     val period by vm.period.collectAsState()
     var text by remember { mutableStateOf("") }
@@ -118,6 +120,8 @@ fun TodoScreen(
                                 task = task,
                                 onToggle = { vm.toggle(task.id) },
                                 onDelete = { vm.remove(task.id) },
+                                onMoveTo = { date -> vm.moveToDate(task, date) },
+                                onCopyTo = { date -> vm.copyToDate(task, date) },
                             )
                         }
                     }

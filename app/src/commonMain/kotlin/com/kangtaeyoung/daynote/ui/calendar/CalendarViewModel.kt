@@ -4,17 +4,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kangtaeyoung.daynote.core.atTimeMillis
 import com.kangtaeyoung.daynote.core.dayRange
+import com.kangtaeyoung.daynote.core.movedToDate
 import com.kangtaeyoung.daynote.core.startOfDayMillis
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.core.today
 import com.kangtaeyoung.daynote.domain.model.Note
 import com.kangtaeyoung.daynote.domain.model.Task
+import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveTasksByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
+import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
+import com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,6 +44,9 @@ class CalendarViewModel(
     private val toggleTask: ToggleTaskUseCase,
     private val deleteTask: DeleteTaskUseCase,
     private val deleteNote: DeleteNoteUseCase,
+    private val updateNote: UpdateNoteUseCase,
+    private val addNote: AddNoteUseCase,
+    private val updateTask: UpdateTaskUseCase,
 ) : ViewModel() {
 
     private val _selectedDate = MutableStateFlow(today())
@@ -100,5 +107,27 @@ class CalendarViewModel(
 
     fun removeNote(noteId: String) {
         viewModelScope.launch { deleteNote(noteId) }
+    }
+
+    // --- 길게 누름 메뉴(상세 영역) — 다른 날짜로 이동/복사 ---
+
+    fun moveNoteTo(note: Note, date: LocalDate) {
+        viewModelScope.launch { updateNote(note.copy(date = date.startOfDayMillis())) }
+    }
+
+    fun copyNoteTo(note: Note, date: LocalDate) {
+        viewModelScope.launch { addNote(note.title, note.content, date.startOfDayMillis()) }
+    }
+
+    /** 시간 지정 할 일은 시:분 유지, 종일은 그 날 자정. */
+    private fun Task.dueDateOn(date: LocalDate): Long =
+        if (!allDay && dueDate != null) dueDate.movedToDate(date) else date.startOfDayMillis()
+
+    fun moveTaskTo(task: Task, date: LocalDate) {
+        viewModelScope.launch { updateTask(task.copy(dueDate = task.dueDateOn(date))) }
+    }
+
+    fun copyTaskTo(task: Task, date: LocalDate) {
+        viewModelScope.launch { addTask(task.text, task.noteId, task.dueDateOn(date), task.allDay) }
     }
 }
