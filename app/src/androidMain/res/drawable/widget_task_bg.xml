@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 위젯 안 할 일 한 줄의 옅은 박스 — 앱 달력 칸의 TaskLineChip 과 같은 컨셉. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/widgetTaskChip" />
+    <corners android:radius="6dp" />
+</shape>

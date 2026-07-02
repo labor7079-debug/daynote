@@ -2,4 +2,11 @@
 <resources>
     <!-- 「Quiet Cadence」 웜 본(배경). 적응형 아이콘 배경(전면 리본 저널의 바탕). -->
     <color name="ic_launcher_background">#F0ECE3</color>
+
+    <!-- 홈 위젯 — 앱 팔레트(웜 본/슬레이트/클레이)와 동일 톤. values-night 에 다크 대응. -->
+    <color name="widgetBackground">#F0ECE3</color>
+    <color name="widgetText">#2B2A26</color>
+    <color name="widgetTextDim">#6C675E</color>
+    <color name="widgetAccent">#AA422D</color>
+    <color name="widgetTaskChip">#E2DCCF</color>
 </resources>

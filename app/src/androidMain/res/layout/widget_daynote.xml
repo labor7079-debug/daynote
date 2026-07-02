@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DayNote 홈 위젯 — 오늘 날짜 헤더(+공휴일명) + 그날의 메모·할 일 최대 6줄 + ⊕(앱 열기).
+  할 일 줄은 코드에서 widget_task_bg 배경을 입혀 메모와 구분한다(달력 칸과 같은 컨셉).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/widgetText" />
+
+        <TextView
+            android:id="@+id/widget_holiday"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="@color/widgetAccent"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/widget_add"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="10dp"
+            android:paddingEnd="4dp"
+            android:text="＋"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/widgetText" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_line1"
+        style="@style/WidgetLine" />
+
+    <TextView
+        android:id="@+id/widget_line2"
+        style="@style/WidgetLine" />
+
+    <TextView
+        android:id="@+id/widget_line3"
+        style="@style/WidgetLine" />
+
+    <TextView
+        android:id="@+id/widget_line4"
+        style="@style/WidgetLine" />
+
+    <TextView
+        android:id="@+id/widget_line5"
+        style="@style/WidgetLine" />
+
+    <TextView
+        android:id="@+id/widget_line6"
+        style="@style/WidgetLine" />
+
+    <TextView
+        android:id="@+id/widget_more"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:textSize="11sp"
+        android:textColor="@color/widgetTextDim"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="이 날의 메모·할 일이 없습니다. 탭하여 작성하세요."
+        android:textSize="12sp"
+        android:textColor="@color/widgetTextDim"
+        android:visibility="gone" />
+</LinearLayout>

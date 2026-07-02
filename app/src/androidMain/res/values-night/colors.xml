@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 홈 위젯 다크 — 웜 차콜 배경 + 밝은 웜 텍스트 + 다크 클레이. -->
+    <color name="widgetBackground">#1A1815</color>
+    <color name="widgetText">#ECE6DB</color>
+    <color name="widgetTextDim">#A8A196</color>
+    <color name="widgetAccent">#D98366</color>
+    <color name="widgetTaskChip">#2B2823</color>
+</resources>

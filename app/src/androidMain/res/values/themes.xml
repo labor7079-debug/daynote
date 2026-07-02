@@ -2,4 +2,20 @@
 <resources>
     <!-- 런처/윈도우용 베이스 테마. 실제 색·타이포는 Compose Material3(DayNoteTheme)가 그린다. -->
     <style name="Theme.DayNote" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- 홈 위젯의 항목 한 줄(메모/할 일 공용). 할 일 배경 박스는 코드에서 입힌다. -->
+    <style name="WidgetLine">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:paddingLeft">5dp</item>
+        <item name="android:paddingRight">5dp</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:paddingBottom">2dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textColor">@color/widgetText</item>
+        <item name="android:visibility">gone</item>
+    </style>
 </resources>
