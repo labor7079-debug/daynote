@@ -165,10 +165,14 @@ fun DayNoteNavHost() {
                     onNewNote = { navigator.openNewNote(null) },
                     onSearch = { navigator.openSearch() },
                     onSelectDestination = { dest -> navigator.selectTab(dest) },
+                    onOpenSettings = { navigator.openSettings() },
                 )
             }
             composable(Routes.TODO) {
-                TodoScreen(onSelectDestination = { dest -> navigator.selectTab(dest) })
+                TodoScreen(
+                    onSelectDestination = { dest -> navigator.selectTab(dest) },
+                    onOpenSettings = { navigator.openSettings() },
+                )
             }
             composable(Routes.EDITOR) {
                 NoteEditorScreen(

@@ -35,3 +35,21 @@ val SettingsGearIcon: ImageVector by lazy {
         fill = SolidColor(Color.Black),
     ).build()
 }
+
+/** 동기화(원형 화살표 2개). 24x24 표준 sync 경로. */
+val SyncArrowsIcon: ImageVector by lazy {
+    val path = "M12,4V1L8,5l4,4V6c3.31,0 6,2.69 6,6c0,1.01,-0.25,1.97,-0.7,2.8l1.46,1.46" +
+        "C19.54,15.03 20,13.57 20,12c0,-4.42,-3.58,-8,-8,-8zM12,18c-3.31,0,-6,-2.69,-6,-6" +
+        "c0,-1.01 0.25,-1.97 0.7,-2.8L5.24,7.74C4.46,8.97 4,10.43 4,12c0,4.42 3.58,8 8,8v3" +
+        "l4,-4l-4,-4V18z"
+    ImageVector.Builder(
+        name = "SyncArrows",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).addPath(
+        pathData = PathParser().parsePathString(path).toNodes(),
+        fill = SolidColor(Color.Black),
+    ).build()
+}

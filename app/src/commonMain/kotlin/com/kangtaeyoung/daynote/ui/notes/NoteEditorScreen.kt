@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,7 +38,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,6 +64,7 @@ import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SuggestTitleUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
+import com.kangtaeyoung.daynote.ui.components.AppBackHandler
 import com.kangtaeyoung.daynote.ui.components.MarkdownText
 import com.kangtaeyoung.daynote.ui.components.TaskRow
 import androidx.compose.foundation.clickable
@@ -113,19 +120,62 @@ fun NoteEditorScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // 저장 — 하단 버튼과 Ctrl+S(태블릿 키보드·PC) 공용.
+    val doSave: () -> Unit = {
+        if (savedNoteId == null && vm.title.isBlank() && vm.content.isBlank()) {
+            scope.launch { snackbarHostState.showSnackbar("저장할 내용이 없어요.") }
+        } else {
+            vm.save {
+                scope.launch { snackbarHostState.showSnackbar("저장되었습니다 ✓") }
+            }
+        }
+    }
+
+    // 뒤로 나가기 — 저장 안 한 변경이 있으면 확인을 먼저 묻는다("뒤로" 버튼·시스템 뒤로 공통).
+    var showExitConfirm by remember { mutableStateOf(false) }
+    val requestBack: () -> Unit = {
+        if (vm.isDirty()) showExitConfirm = true else onBack()
+    }
+    AppBackHandler(enabled = true) { requestBack() }
+
+    if (showExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = { Text("저장하지 않고 나가시겠습니까?") },
+            text = { Text("저장하지 않은 변경 내용은 사라집니다.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExitConfirm = false
+                    onBack()
+                }) { Text("나가기") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirm = false }) { Text("취소") }
+            },
+        )
+    }
+
     Scaffold(
+        // Ctrl+S = 저장(태블릿 외장 키보드·PC). preview 단계라 본문 입력 중에도 동작한다.
+        modifier = Modifier.onPreviewKeyEvent { e ->
+            if (e.type == KeyEventType.KeyDown && e.isCtrlPressed && e.key == Key.S) {
+                doSave()
+                true
+            } else {
+                false
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         if (noteId == null) "새 메모" else "메모",
-                        fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Medium,
                     )
                 },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("뒤로") }
+                    TextButton(onClick = requestBack) { Text("뒤로") }
                 },
                 actions = {
                     TextButton(
@@ -152,16 +202,8 @@ fun NoteEditorScreen(
         bottomBar = {
             Surface(tonalElevation = 3.dp) {
                 Button(
-                    onClick = {
-                        // 저장 피드백: 실제로 저장됐을 때만 "저장되었습니다", 빈 메모면 안내.
-                        if (savedNoteId == null && vm.title.isBlank() && vm.content.isBlank()) {
-                            scope.launch { snackbarHostState.showSnackbar("저장할 내용이 없어요.") }
-                        } else {
-                            vm.save {
-                                scope.launch { snackbarHostState.showSnackbar("저장되었습니다 ✓") }
-                            }
-                        }
-                    },
+                    // 저장 피드백: 실제로 저장됐을 때만 "저장되었습니다", 빈 메모면 안내(doSave 공용).
+                    onClick = doSave,
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding() // 시스템 내비게이션 바와 겹치지 않게

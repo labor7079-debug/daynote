@@ -27,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -145,7 +144,7 @@ fun MiniCalendarDialog(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontFamily = FontFamily.Serif,
+                    // 앱 전체 한글 글씨체 통일(세리프 혼용 제거 — 사용자 피드백).
                     fontWeight = FontWeight.Medium,
                 )
                 if (pickMode) {

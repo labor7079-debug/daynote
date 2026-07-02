@@ -208,6 +208,20 @@ class NoteEditorViewModel(
         viewModelScope.launch { deleteTask(taskId) }
     }
 
+    /**
+     * 저장하지 않은 변경이 있는지 — 뒤로 나갈 때 "저장하지 않고 나가시겠습니까?" 확인용.
+     * 새 메모(미저장): 뭐라도 입력했으면 dirty. 기존 메모: 마지막 저장본과 제목/본문이 다르면 dirty.
+     * (할 일은 추가 즉시 저장되므로 비교 대상이 아니다.)
+     */
+    fun isDirty(): Boolean {
+        val base = loaded
+        return if (base == null) {
+            idFlow.value == null && (title.isNotBlank() || content.isNotBlank())
+        } else {
+            title != base.title || content != base.content
+        }
+    }
+
     /** 메모 삭제(소프트). 새 메모(미저장)면 할 일 없음. */
     fun deleteCurrent(onDeleted: () -> Unit) {
         val id = idFlow.value

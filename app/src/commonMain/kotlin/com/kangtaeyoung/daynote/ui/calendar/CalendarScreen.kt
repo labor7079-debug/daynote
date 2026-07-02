@@ -33,8 +33,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -61,7 +59,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -93,13 +90,14 @@ import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase
 import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
+import com.kangtaeyoung.daynote.ui.components.SyncFab
+import com.kangtaeyoung.daynote.ui.components.cloudSyncResultMessage
 import com.kangtaeyoung.daynote.ui.components.MiniCalendarDialog
 import com.kangtaeyoung.daynote.ui.components.TaskRow
 import com.kangtaeyoung.daynote.ui.components.TopDestination
 import com.kangtaeyoung.daynote.ui.components.WithItemActions
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import com.kangtaeyoung.daynote.ui.theme.SettingsGearIcon
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -165,36 +163,24 @@ fun CalendarScreen(
                     calendarSync.syncNow()
                 }
                 refreshing = false
-                val message = when (val s = cloudSync.state.value) {
-                    is CloudSyncState.Synced -> "동기화 완료 ✓"
-                    is CloudSyncState.Error -> "동기화 실패: ${s.message.lineSequence().first()}"
-                    CloudSyncState.Disabled -> "클라우드 동기화가 꺼져 있어요. 설정에서 켤 수 있어요."
-                    CloudSyncState.NeedsConfig -> "동기화 설정(설정 화면)이 필요해요."
-                    CloudSyncState.SignedOut -> "동기화 로그인이 필요해요(설정 화면)."
-                    else -> null
-                }
-                message?.let { snackbarHostState.showSnackbar(it) }
+                // 결과 문구는 우측 하단 동기화 FAB 과 공용(components/SyncFab.kt).
+                cloudSyncResultMessage(cloudSync.state.value)?.let { snackbarHostState.showSnackbar(it) }
             }
         }
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text("Calendar") },
-                actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(
-                            imageVector = SettingsGearIcon,
-                            contentDescription = "설정",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
+        topBar = { TopAppBar(title = { Text("Calendar") }) },
+        // 설정(톱니)은 하단바로 이동, 동기화는 우측 하단 상시 FAB.
+        bottomBar = {
+            DayNoteBottomBar(
+                current = TopDestination.Calendar,
+                onSelect = onSelectDestination,
+                onOpenSettings = onOpenSettings,
             )
         },
-        bottomBar = { DayNoteBottomBar(current = TopDestination.Calendar, onSelect = onSelectDestination) },
+        floatingActionButton = { SyncFab(snackbarHostState) },
     ) { padding ->
         androidx.compose.foundation.layout.BoxWithConstraints(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -365,7 +351,7 @@ private fun CalendarHeader(label: String, onPrev: () -> Unit, onNext: () -> Unit
             Text(
                 text = label,
                 style = MaterialTheme.typography.headlineSmall,
-                fontFamily = FontFamily.Serif,
+                // 앱 전체 한글 글씨체 통일 — 세리프 혼용을 없애고 기본체 하나만 쓴다(사용자 피드백).
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -838,13 +824,13 @@ private fun DayDetail(
     onCopyTask: (Task, LocalDate) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        // 날짜 헤더 — 세리프 + 클레이 스와시(캘린더 헤더와 통일). 공휴일이면 이름을 클레이로 병기.
+        // 날짜 헤더 — 클레이 스와시(캘린더 헤더와 통일). 공휴일이면 이름을 클레이로 병기.
+        // 글씨체는 앱 공통 기본체(세리프 혼용 제거 — 사용자 피드백).
         val holidayName = KoreanHolidays.nameOf(date)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = date.dayLabel(),
                 style = MaterialTheme.typography.titleLarge,
-                fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Medium,
                 color = if (holidayName != null) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
             )

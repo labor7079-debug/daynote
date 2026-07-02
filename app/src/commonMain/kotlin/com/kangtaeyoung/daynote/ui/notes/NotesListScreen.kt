@@ -12,6 +12,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -35,6 +37,7 @@ import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
 import com.kangtaeyoung.daynote.ui.components.NoteListItem
 import com.kangtaeyoung.daynote.ui.components.Period
 import com.kangtaeyoung.daynote.ui.components.PeriodFilterRow
+import com.kangtaeyoung.daynote.ui.components.SyncFab
 import com.kangtaeyoung.daynote.ui.components.TopDestination
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
@@ -46,6 +49,7 @@ fun NotesListScreen(
     onNewNote: () -> Unit,
     onSearch: () -> Unit,
     onSelectDestination: (TopDestination) -> Unit,
+    onOpenSettings: () -> Unit = {},
 ) {
     val observeNotes = koinInject<ObserveNotesUseCase>()
     val deleteNote = koinInject<DeleteNoteUseCase>()
@@ -64,7 +68,10 @@ fun NotesListScreen(
             .map { it.key to it.value }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("DayNote") },
@@ -72,10 +79,18 @@ fun NotesListScreen(
             )
         },
         bottomBar = {
-            DayNoteBottomBar(current = TopDestination.Notes, onSelect = onSelectDestination)
+            DayNoteBottomBar(
+                current = TopDestination.Notes,
+                onSelect = onSelectDestination,
+                onOpenSettings = onOpenSettings,
+            )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNewNote) { Text("+") }
+            // 우측 하단: 동기화(상시) 위에 새 메모(+) — 세로 스택.
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SyncFab(snackbarHostState)
+                FloatingActionButton(onClick = onNewNote) { Text("+") }
+            }
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {

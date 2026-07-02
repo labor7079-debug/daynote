@@ -2,6 +2,7 @@ package com.kangtaeyoung.daynote.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.kangtaeyoung.daynote.ui.theme.SettingsGearIcon
 
 /** 하단 1차 내비게이션 — 캘린더(홈) · 메모 · 할 일. */
 enum class TopDestination { Calendar, Notes, Todo }
@@ -19,6 +21,7 @@ enum class TopDestination { Calendar, Notes, Todo }
 fun DayNoteBottomBar(
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
+    onOpenSettings: (() -> Unit)? = null,
 ) {
     // 배경을 앱 바탕(Paper)에 녹여 튀지 않게 — 투명 컨테이너 + 옅은 상단 헤어라인만.
     Column {
@@ -51,6 +54,21 @@ fun DayNoteBottomBar(
                 icon = { Text("To-Do") },
                 colors = itemColors,
             )
+            // 설정(톱니) — 상단바에서 하단으로 이동. 탭 선택 상태와 무관한 이동 버튼.
+            if (onOpenSettings != null) {
+                NavigationBarItem(
+                    selected = false,
+                    onClick = onOpenSettings,
+                    icon = {
+                        Icon(
+                            imageVector = SettingsGearIcon,
+                            contentDescription = "설정",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    colors = itemColors,
+                )
+            }
         }
     }
 }

@@ -14,6 +14,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -38,6 +40,7 @@ import com.kangtaeyoung.daynote.ui.components.DateGroupHeader
 import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
 import com.kangtaeyoung.daynote.ui.components.Period
 import com.kangtaeyoung.daynote.ui.components.PeriodFilterRow
+import com.kangtaeyoung.daynote.ui.components.SyncFab
 import com.kangtaeyoung.daynote.ui.components.TaskRow
 import com.kangtaeyoung.daynote.ui.components.TopDestination
 import kotlinx.datetime.LocalDate
@@ -47,6 +50,7 @@ import org.koin.compose.koinInject
 @Composable
 fun TodoScreen(
     onSelectDestination: (TopDestination) -> Unit,
+    onOpenSettings: () -> Unit = {},
 ) {
     val observeGeneralTasks = koinInject<ObserveGeneralTasksUseCase>()
     val addTask = koinInject<AddTaskUseCase>()
@@ -66,11 +70,19 @@ fun TodoScreen(
             .map { it.key to it.value }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text("To-Do") }) },
         bottomBar = {
-            DayNoteBottomBar(current = TopDestination.Todo, onSelect = onSelectDestination)
+            DayNoteBottomBar(
+                current = TopDestination.Todo,
+                onSelect = onSelectDestination,
+                onOpenSettings = onOpenSettings,
+            )
         },
+        floatingActionButton = { SyncFab(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             Row(
