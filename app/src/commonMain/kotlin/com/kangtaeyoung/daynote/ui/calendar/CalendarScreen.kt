@@ -412,6 +412,9 @@ private fun MonthGrid(
         }
         val today = today()
         days.chunked(7).forEach { week ->
+            // 기간 할 일 bar 는 주(週) 단위로 레인을 배정한다 — 한 할 일이 걸친 모든 날에서
+            // 같은 레인(세로 위치)을 쓰게 해, 칸을 가로질러 하나의 막대로 이어져 보이게 한다.
+            val bars = computeWeekBars(week, tasksByDate)
             Row(modifier = Modifier.fillMaxWidth()) {
                 week.forEachIndexed { i, day ->
                     val inMonth = day.monthNumber == anchor.monthNumber && day.year == anchor.year
@@ -424,6 +427,9 @@ private fun MonthGrid(
                         isWeekend = i >= 5,
                         notes = notesByDate[day].orEmpty(),
                         tasks = tasksByDate[day].orEmpty(),
+                        laneTasks = bars.laneTasksByDay[day].orEmpty(),
+                        rangedOverflow = bars.overflowByDay[day] ?: 0,
+                        weekStart = week.first(),
                         onClick = { onSelect(day) },
                         onOpenNote = onOpenNote,
                         modifier = Modifier.weight(1f),
@@ -448,6 +454,9 @@ private fun DayCell(
     isWeekend: Boolean,
     notes: List<Note>,
     tasks: List<Task>,
+    laneTasks: List<Task?>,
+    rangedOverflow: Int,
+    weekStart: LocalDate,
     onClick: () -> Unit,
     onOpenNote: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -460,64 +469,131 @@ private fun DayCell(
         isWeekend || holidayName != null -> MaterialTheme.colorScheme.secondaryContainer
         else -> MaterialTheme.colorScheme.surface
     }
-    Column(
-        modifier = modifier
-            .padding(3.dp)
-            .clip(RoundedCornerShape(13.dp))
-            .background(tileColor)
-            .then(
-                if (isSelected) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(13.dp))
-                else Modifier,
-            )
-            .clickable(onClick = onClick)
-            .heightIn(min = 92.dp)
-            .padding(horizontal = 7.dp, vertical = 6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            DayNumber(day.dayOfMonth, isToday, inMonth, isRed = isSunday || holidayName != null)
-            DensityDots(notes, tasks)
-        }
-        Spacer(Modifier.height(4.dp))
-        if (holidayName != null && inMonth) {
-            Text(
-                text = holidayName,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.tertiary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        // 기간 할 일(여러 날)은 이어지는 bar 조각으로 — 시작/끝 칸만 모서리를 둥글려 걸친 모양을 만든다.
-        val (ranged, single) = tasks.partition { it.endDate != null }
-        ranged.take(2).forEach { task -> TaskBarSegment(task, day) }
-        notes.take(2).forEach { note ->
-            Text(
-                text = note.title.ifBlank { "(제목 없음)" },
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = if (note.isPinned) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (note.isPinned) FontWeight.SemiBold else FontWeight.Normal,
-                modifier = Modifier.fillMaxWidth().clickable { onOpenNote(note.id) },
-            )
-        }
-        // 하루짜리 할 일은 내용을 옅은 박스로(접힘/펼침 표기 통일).
-        single.take(2).forEach { task -> TaskLineChip(task) }
-        val more = (notes.size - 2).coerceAtLeast(0) +
-            (single.size - 2).coerceAtLeast(0) +
-            (ranged.size - 2).coerceAtLeast(0)
-        if (more > 0) {
-            Text(
-                text = "+${more}개 더",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
+    // 칸(=weight 1f) 전체를 Box 로 잡는다. 둥근 배경 타일은 3dp 안쪽에 그리고(칸 사이 간격),
+    // 기간 bar 는 타일이 아니라 '칸 전체 폭'에 그린다 — 칸끼리는 맞닿아 있어 bar 가 틈 없이 이어진다.
+    Box(modifier = modifier.heightIn(min = 92.dp)) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .padding(3.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(tileColor)
+                .then(
+                    if (isSelected) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(13.dp))
+                    else Modifier,
+                )
+                .clickable(onClick = onClick),
+        )
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+            // 날짜 줄은 고정 높이(24dp) — 모든 칸에서 bar 레인의 세로 위치가 같아지도록.
+            Row(
+                modifier = Modifier.fillMaxWidth().height(24.dp).padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DayNumber(day.dayOfMonth, isToday, inMonth, isRed = isSunday || holidayName != null)
+                DensityDots(notes, tasks)
+            }
+            Spacer(Modifier.height(4.dp))
+            // 기간 bar 레인 — 칸 전체 폭(가로 여백 0)이라 옆 칸과 이어진다. 빈 레인도 같은 높이 확보(정렬 유지).
+            laneTasks.forEach { t ->
+                if (t != null) SeamlessDayBar(t, day, weekStart) else Spacer(Modifier.height(18.dp))
+            }
+            if (holidayName != null && inMonth) {
+                Text(
+                    text = holidayName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 10.dp),
+                )
+            }
+            notes.take(2).forEach { note ->
+                Text(
+                    text = note.title.ifBlank { "(제목 없음)" },
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (note.isPinned) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (note.isPinned) FontWeight.SemiBold else FontWeight.Normal,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp).clickable { onOpenNote(note.id) },
+                )
+            }
+            // 하루짜리 할 일은 내용을 옅은 박스로(접힘/펼침 표기 통일).
+            val single = tasks.filter { it.endDate == null }
+            single.take(2).forEach { task -> TaskLineChip(task) }
+            val more = (notes.size - 2).coerceAtLeast(0) +
+                (single.size - 2).coerceAtLeast(0) +
+                rangedOverflow
+            if (more > 0) {
+                Text(
+                    text = "+${more}개 더",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 10.dp),
+                )
+            }
         }
     }
+}
+
+/** 한 주에 걸치는 기간 할 일에 레인(세로 줄)을 배정한 결과. */
+private data class WeekBars(
+    val laneTasksByDay: Map<LocalDate, List<Task?>>,
+    val overflowByDay: Map<LocalDate, Int>,
+    val laneCount: Int,
+)
+
+/**
+ * 주 단위 bar 레인 배정 — 겹치는 기간 할 일에 서로 다른 레인을 주되, 한 할 일은 걸친 모든 날에서
+ * 같은 레인을 쓴다(칸을 가로질러 이어지도록). 레인은 [maxLanes] 개까지만; 초과분은 "+N개 더"로 센다.
+ */
+private fun computeWeekBars(
+    week: List<LocalDate>,
+    tasksByDate: Map<LocalDate, List<Task>>,
+    maxLanes: Int = 2,
+): WeekBars {
+    fun startOf(t: Task) = (t.dueDate ?: t.createdAt).toLocalDate()
+    fun endOf(t: Task) = t.endDate!!.toLocalDate()
+    fun overlaps(a: Task, b: Task) = startOf(a) <= endOf(b) && startOf(b) <= endOf(a)
+
+    // 이 주에 걸치는 기간 할 일(중복 제거) — 시작일·id 순으로 안정 정렬.
+    val ranged = week.asSequence()
+        .flatMap { (tasksByDate[it].orEmpty()).asSequence() }
+        .filter { it.endDate != null }
+        .distinctBy { it.id }
+        .sortedWith(compareBy({ it.dueDate ?: it.createdAt }, { it.id }))
+        .toList()
+
+    val lanes = ArrayList<ArrayList<Task>>()
+    val laneOf = HashMap<String, Int>()
+    for (t in ranged) {
+        var placed = -1
+        for (i in lanes.indices) {
+            if (lanes[i].none { overlaps(it, t) }) { lanes[i].add(t); placed = i; break }
+        }
+        if (placed == -1 && lanes.size < maxLanes) {
+            lanes.add(arrayListOf(t)); placed = lanes.size - 1
+        }
+        laneOf[t.id] = placed // -1 = 레인 부족(초과) → "+N개 더"
+    }
+    val laneCount = lanes.size
+
+    val laneTasksByDay = HashMap<LocalDate, List<Task?>>()
+    val overflowByDay = HashMap<LocalDate, Int>()
+    for (day in week) {
+        val onDay = (tasksByDate[day].orEmpty()).filter { it.endDate != null }
+        val arr = arrayOfNulls<Task>(laneCount)
+        var overflow = 0
+        for (t in onDay) {
+            val lane = laneOf[t.id] ?: -1
+            if (lane in 0 until laneCount) arr[lane] = t else overflow++
+        }
+        laneTasksByDay[day] = arr.asList()
+        overflowByDay[day] = overflow
+    }
+    return WeekBars(laneTasksByDay, overflowByDay, laneCount)
 }
 
 /**
@@ -541,7 +617,8 @@ private fun TaskLineChip(task: Task) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 2.dp)
+            // 하루짜리 칩은 타일 안쪽으로 들여쓴다(가로 10dp = 타일 여백 3 + 안쪽 7). 기간 bar 만 칸 끝까지 꽉 채운다.
+            .padding(start = 10.dp, end = 10.dp, top = 2.dp)
             .clip(RoundedCornerShape(5.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 5.dp, vertical = 2.dp),
@@ -549,37 +626,46 @@ private fun TaskLineChip(task: Task) {
 }
 
 /**
- * 월 달력 칸의 기간 할 일 bar 조각 — 걸치는 모든 날짜 칸에 같은 슬레이트 bar 를 깔고,
- * 시작 칸만 왼쪽·끝 칸만 오른쪽 모서리를 둥글려 하나의 bar 가 이어진 것처럼 보이게 한다.
- * 텍스트는 시작 칸에만 표기(중간 칸은 bar 만).
+ * 기간 할 일 bar 한 칸 조각 — **칸 전체 폭**(가로 여백 0)에 그려, 맞닿은 이웃 칸의 조각과
+ * 틈 없이 이어져 하나의 막대로 보인다. 실제 시작일만 왼쪽·종료일만 오른쪽 모서리를 둥글리고
+ * 나머지(맞닿는 변)는 각지게 둔다. 라벨(제목)은 시작일 또는 그 주의 첫 칸([weekStart])에만 표기.
  */
 @Composable
-private fun TaskBarSegment(task: Task, day: LocalDate) {
+private fun SeamlessDayBar(task: Task, day: LocalDate, weekStart: LocalDate) {
     val start = (task.dueDate ?: task.createdAt).toLocalDate()
     val end = task.endDate?.toLocalDate() ?: start
-    val isStart = day == start
-    val isEnd = day == end
+    val roundLeft = day == start
+    val roundRight = day == end
     val shape = RoundedCornerShape(
-        topStart = if (isStart) 5.dp else 0.dp,
-        bottomStart = if (isStart) 5.dp else 0.dp,
-        topEnd = if (isEnd) 5.dp else 0.dp,
-        bottomEnd = if (isEnd) 5.dp else 0.dp,
+        topStart = if (roundLeft) 5.dp else 0.dp,
+        bottomStart = if (roundLeft) 5.dp else 0.dp,
+        topEnd = if (roundRight) 5.dp else 0.dp,
+        bottomEnd = if (roundRight) 5.dp else 0.dp,
     )
     val barColor = MaterialTheme.colorScheme.primary.copy(alpha = if (task.isDone) 0.45f else 1f)
-    Text(
-        text = if (isStart) task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { " " } else " ",
-        style = MaterialTheme.typography.labelSmall,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        textDecoration = if (task.isDone) TextDecoration.LineThrough else null,
-        color = MaterialTheme.colorScheme.onPrimary,
+    // 라벨은 이 주에서 처음 보이는 칸(시작일이거나 주의 첫 칸)에만 — 여러 주에 걸쳐도 매주 제목이 보인다.
+    val showLabel = day == start || day == weekStart
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 2.dp)
+            .height(16.dp)
             .clip(shape)
-            .background(barColor)
-            .padding(horizontal = 5.dp, vertical = 2.dp),
-    )
+            .background(barColor),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (showLabel) {
+            Text(
+                text = task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { " " },
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textDecoration = if (task.isDone) TextDecoration.LineThrough else null,
+                color = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.padding(horizontal = 6.dp),
+            )
+        }
+    }
 }
 
 /** 오늘은 슬레이트 원으로 감싼 숫자, 그 외는 색만(일요일·공휴일=클레이, 이번달 밖=흐리게). */
