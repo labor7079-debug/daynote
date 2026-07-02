@@ -4,16 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -27,23 +22,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.domain.model.Note
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SetNotePinnedUseCase
+import com.kangtaeyoung.daynote.ui.components.DateGroupHeader
 import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
 import com.kangtaeyoung.daynote.ui.components.NoteListItem
+import com.kangtaeyoung.daynote.ui.components.Period
+import com.kangtaeyoung.daynote.ui.components.PeriodFilterRow
 import com.kangtaeyoung.daynote.ui.components.TopDestination
-import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.isoDayNumber
 import org.koin.compose.koinInject
-
-private val dowLabels = listOf("월", "화", "수", "목", "금", "토", "일")
-private fun koreanDow(dow: DayOfWeek): String = dowLabels[dow.isoDayNumber - 1]
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,21 +76,7 @@ fun NotesListScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // 기간 필터 — 전체/오늘/최근 7일/최근 30일.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                NotesPeriod.entries.forEach { p ->
-                    FilterChip(
-                        selected = period == p,
-                        onClick = { vm.setPeriod(p) },
-                        label = { Text(p.label) },
-                    )
-                }
-            }
+            PeriodFilterRow(selected = period, onSelect = vm::setPeriod)
 
             if (notes.isEmpty()) {
                 Box(
@@ -106,7 +84,7 @@ fun NotesListScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        if (period == NotesPeriod.ALL) "메모가 없습니다. + 로 첫 메모를 작성하세요."
+                        if (period == Period.ALL) "메모가 없습니다. + 로 첫 메모를 작성하세요."
                         else "「${period.label}」 기간에 작성된 메모가 없습니다.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -120,7 +98,7 @@ fun NotesListScreen(
                 ) {
                     grouped.forEach { (date, dayNotes) ->
                         item(key = "header:$date") {
-                            DateHeader(date, dayNotes.size)
+                            DateGroupHeader(date, dayNotes.size)
                         }
                         items(dayNotes, key = { it.id }) { note ->
                             NoteListItem(note = note, onClick = { onOpenNote(note.id) })
@@ -130,16 +108,4 @@ fun NotesListScreen(
             }
         }
     }
-}
-
-/** 일자별 그룹 헤더 — "2026년 7월 2일 (수) · N개". 캘린더 상세와 같은 클리니컬 캡션 톤. */
-@Composable
-private fun DateHeader(date: LocalDate, count: Int) {
-    Text(
-        text = "${date.year}년 ${date.monthNumber}월 ${date.dayOfMonth}일 (${koreanDow(date.dayOfWeek)}) · ${count}개",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        letterSpacing = 1.sp,
-        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
-    )
 }
