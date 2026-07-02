@@ -134,6 +134,7 @@ fun TodoScreen(
                                 onDelete = { vm.remove(task.id) },
                                 onMoveTo = { date -> vm.moveToDate(task, date) },
                                 onCopyTo = { date -> vm.copyToDate(task, date) },
+                                onUpdate = vm::edit,
                             )
                         }
                     }

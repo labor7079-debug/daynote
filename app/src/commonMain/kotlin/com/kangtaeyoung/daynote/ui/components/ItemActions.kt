@@ -58,6 +58,7 @@ private enum class ActionDialog { NONE, VIEW, PICK_MOVE, PICK_COPY }
 @Composable
 fun WithItemActions(
     calendarDate: LocalDate,
+    onEdit: (() -> Unit)? = null,
     onMoveTo: ((LocalDate) -> Unit)? = null,
     onCopyTo: ((LocalDate) -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
@@ -69,6 +70,12 @@ fun WithItemActions(
     Box {
         content({ dialog = ActionDialog.VIEW }, { menuOpen = true })
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            if (onEdit != null) {
+                DropdownMenuItem(
+                    text = { Text("수정") },
+                    onClick = { menuOpen = false; onEdit() },
+                )
+            }
             DropdownMenuItem(
                 text = { Text("캘린더 보기") },
                 onClick = { menuOpen = false; dialog = ActionDialog.VIEW },

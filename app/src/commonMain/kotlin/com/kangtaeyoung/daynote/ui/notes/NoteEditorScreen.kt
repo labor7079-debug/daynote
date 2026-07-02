@@ -64,6 +64,7 @@ import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SuggestTitleUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
+import com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase
 import com.kangtaeyoung.daynote.ui.components.AppBackHandler
 import com.kangtaeyoung.daynote.ui.components.MarkdownText
 import com.kangtaeyoung.daynote.ui.components.TaskRow
@@ -90,6 +91,7 @@ fun NoteEditorScreen(
     val addTask = koinInject<AddTaskUseCase>()
     val toggleTask = koinInject<ToggleTaskUseCase>()
     val deleteTask = koinInject<DeleteTaskUseCase>()
+    val updateTask = koinInject<UpdateTaskUseCase>()
     val suggestTitle = koinInject<SuggestTitleUseCase>()
     val settings = koinInject<SettingsRepository>()
     val findRelatedNotes = koinInject<FindRelatedNotesUseCase>()
@@ -106,6 +108,7 @@ fun NoteEditorScreen(
             addTask = addTask,
             toggleTask = toggleTask,
             deleteTask = deleteTask,
+            updateTask = updateTask,
             suggestTitle = suggestTitle,
             settings = settings,
             findRelatedNotes = findRelatedNotes,
@@ -298,6 +301,7 @@ fun NoteEditorScreen(
                     task = task,
                     onToggle = { vm.toggle(task.id) },
                     onDelete = { vm.removeTask(task.id) },
+                    onUpdate = vm::editTask,
                 )
             }
             TaskInput(onAdd = { text ->

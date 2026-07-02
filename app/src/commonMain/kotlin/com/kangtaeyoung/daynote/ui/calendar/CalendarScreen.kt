@@ -58,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -69,6 +70,7 @@ import com.kangtaeyoung.daynote.core.firstOfMonthPlusMonths
 import com.kangtaeyoung.daynote.core.isoWeekNumber
 import com.kangtaeyoung.daynote.core.monthGridDays
 import com.kangtaeyoung.daynote.core.startOfDayMillis
+import com.kangtaeyoung.daynote.core.toHourMinuteLabel
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.core.today
 import com.kangtaeyoung.daynote.core.toMillisRange
@@ -93,7 +95,9 @@ import com.kangtaeyoung.daynote.ui.components.DayNoteBottomBar
 import com.kangtaeyoung.daynote.ui.components.SyncFab
 import com.kangtaeyoung.daynote.ui.components.cloudSyncResultMessage
 import com.kangtaeyoung.daynote.ui.components.MiniCalendarDialog
+import com.kangtaeyoung.daynote.ui.components.NumberDropdown
 import com.kangtaeyoung.daynote.ui.components.TaskRow
+import com.kangtaeyoung.daynote.ui.components.spansDays
 import com.kangtaeyoung.daynote.ui.components.TopDestination
 import com.kangtaeyoung.daynote.ui.components.WithItemActions
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -229,6 +233,25 @@ fun CalendarScreen(
                             },
                             onHorizontalDrag = { _, dragAmount -> total += dragAmount },
                         )
+                    }.pointerInput(compact) {
+                        // PC·태블릿: 마우스 휠/트랙패드 세로 스크롤 → 아래=다음, 위=이전(주/월 공통, 되돌리면 복귀).
+                        awaitPointerEventScope {
+                            var acc = 0f
+                            while (true) {
+                                val e = awaitPointerEvent()
+                                if (e.type == PointerEventType.Scroll) {
+                                    acc += e.changes.fold(0f) { a, c -> a + c.scrollDelta.y }
+                                    if (acc >= 1f) {
+                                        acc = 0f
+                                        goNext()
+                                    } else if (acc <= -1f) {
+                                        acc = 0f
+                                        goPrev()
+                                    }
+                                    e.changes.forEach { it.consume() }
+                                }
+                            }
+                        }
                     },
                 ) {
                     // 이전/다음 전환에 가로 슬라이드 애니메이션(방향은 navDir).
@@ -275,12 +298,12 @@ fun CalendarScreen(
                     onOpenNote = onOpenNote,
                     onAddNote = { onAddNoteForDate(selectedDate.startOfDayMillis()) },
                     onDeleteNote = vm::removeNote,
-                    onAddTask = { text, allDay, hour, minute, endDate ->
+                    onAddTask = { text, allDay, hour, minute, endDate, endHour, endMinute ->
                         // 추가 피드백: 실제 추가됐을 때만 확인 스낵바(빈 입력은 안내).
                         if (text.isBlank()) {
                             scope.launch { snackbarHostState.showSnackbar("할 일 내용을 입력하세요.") }
                         } else {
-                            vm.addTaskForSelectedDate(text, allDay, hour, minute, endDate)
+                            vm.addTaskForSelectedDate(text, allDay, hour, minute, endDate, endHour, endMinute)
                             scope.launch { snackbarHostState.showSnackbar("할 일이 추가되었습니다 ✓") }
                         }
                     },
@@ -301,6 +324,10 @@ fun CalendarScreen(
                     onCopyTask = { task, d ->
                         vm.copyTaskTo(task, d)
                         scope.launch { snackbarHostState.showSnackbar("할 일을 ${d.monthNumber}월 ${d.dayOfMonth}일에 복사했습니다 ✓") }
+                    },
+                    onEditTask = { task ->
+                        vm.editTask(task)
+                        scope.launch { snackbarHostState.showSnackbar("할 일이 수정되었습니다 ✓") }
                     },
                 )
             }
@@ -509,8 +536,8 @@ private fun DayCell(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp).clickable { onOpenNote(note.id) },
                 )
             }
-            // 하루짜리 할 일은 내용을 옅은 박스로(접힘/펼침 표기 통일).
-            val single = tasks.filter { it.endDate == null }
+            // 하루를 넘기지 않는 할 일(종일·시각·같은 날 시각 범위)은 내용을 옅은 박스로.
+            val single = tasks.filter { !it.spansDays() }
             val visibleSingle = if (expanded) single else single.take(2)
             visibleSingle.forEach { task -> TaskLineChip(task) }
             // 레인 부족으로 bar 를 못 그린 기간 할 일은 펼쳤을 때 칩(기간 병기)으로 보여준다.
@@ -552,9 +579,10 @@ private fun computeWeekBars(
     fun overlaps(a: Task, b: Task) = startOf(a) <= endOf(b) && startOf(b) <= endOf(a)
 
     // 이 주에 걸치는 기간 할 일(중복 제거) — 시작일·id 순으로 안정 정렬.
+    // 같은 날 시각 범위(endDate 가 같은 날)는 bar 가 아니라 칩으로 다룬다(spansDays=false).
     val ranged = week.asSequence()
         .flatMap { (tasksByDate[it].orEmpty()).asSequence() }
-        .filter { it.endDate != null }
+        .filter { it.spansDays() }
         .distinctBy { it.id }
         .sortedWith(compareBy({ it.dueDate ?: it.createdAt }, { it.id }))
         .toList()
@@ -576,7 +604,7 @@ private fun computeWeekBars(
     val laneTasksByDay = HashMap<LocalDate, List<Task?>>()
     val overflowByDay = HashMap<LocalDate, List<Task>>()
     for (day in week) {
-        val onDay = (tasksByDate[day].orEmpty()).filter { it.endDate != null }
+        val onDay = (tasksByDate[day].orEmpty()).filter { it.spansDays() }
         val arr = arrayOfNulls<Task>(laneCount)
         val overflow = ArrayList<Task>()
         for (t in onDay) {
@@ -597,9 +625,12 @@ private fun computeWeekBars(
 private fun TaskLineChip(task: Task) {
     val head = task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { "(내용 없음)" }
     val range = task.endDate?.let { end ->
-        val s = (task.dueDate ?: task.createdAt).toLocalDate()
+        val due = task.dueDate
+        val s = (due ?: task.createdAt).toLocalDate()
         val e = end.toLocalDate()
-        "${s.monthNumber}/${s.dayOfMonth}~${e.monthNumber}/${e.dayOfMonth} "
+        // 같은 날 시각 범위(몇 시간짜리)는 "14:00~16:00", 여러 날 기간은 "9/14~9/16".
+        if (e == s && due != null) "${due.toHourMinuteLabel()}~${end.toHourMinuteLabel()} "
+        else "${s.monthNumber}/${s.dayOfMonth}~${e.monthNumber}/${e.dayOfMonth} "
     }.orEmpty()
     Text(
         text = range + head,
@@ -845,13 +876,14 @@ private fun DayDetail(
     onOpenNote: (String) -> Unit,
     onAddNote: () -> Unit,
     onDeleteNote: (String) -> Unit,
-    onAddTask: (String, Boolean, Int, Int, LocalDate?) -> Unit,
+    onAddTask: (String, Boolean, Int, Int, LocalDate?, Int?, Int?) -> Unit,
     onToggleTask: (String) -> Unit,
     onDeleteTask: (String) -> Unit,
     onMoveNote: (Note, LocalDate) -> Unit,
     onCopyNote: (Note, LocalDate) -> Unit,
     onMoveTask: (Task, LocalDate) -> Unit,
     onCopyTask: (Task, LocalDate) -> Unit,
+    onEditTask: (Task) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         // 날짜 헤더 — 클레이 스와시(캘린더 헤더와 통일). 공휴일이면 이름을 클레이로 병기.
@@ -920,6 +952,7 @@ private fun DayDetail(
                 onDelete = { onDeleteTask(task.id) },
                 onMoveTo = { d -> onMoveTask(task, d) },
                 onCopyTo = { d -> onCopyTask(task, d) },
+                onUpdate = onEditTask,
             )
         }
         TaskQuickAdd(selectedDate = date, onAdd = onAddTask)
@@ -1001,11 +1034,18 @@ private fun DeleteX(onDelete: () -> Unit) {
 }
 
 @Composable
-private fun TaskQuickAdd(selectedDate: LocalDate, onAdd: (String, Boolean, Int, Int, LocalDate?) -> Unit) {
+private fun TaskQuickAdd(
+    selectedDate: LocalDate,
+    onAdd: (String, Boolean, Int, Int, LocalDate?, Int?, Int?) -> Unit,
+) {
     var text by remember { mutableStateOf("") }
     var allDay by remember { mutableStateOf(true) }
     var hour by remember { mutableStateOf(9) }
     var minute by remember { mutableStateOf(0) }
+    // 종료 시각(선택) — 켜면 시작~종료 시각 범위가 된다(종료일 없으면 같은 날).
+    var endTimeOn by remember { mutableStateOf(false) }
+    var endHour by remember { mutableStateOf(10) }
+    var endMinute by remember { mutableStateOf(0) }
     // 기간 할 일: 종료일(시작=선택 날짜). null 이면 하루짜리.
     var endDate by remember(selectedDate) { mutableStateOf<LocalDate?>(null) }
     var showEndPicker by remember { mutableStateOf(false) }
@@ -1020,9 +1060,10 @@ private fun TaskQuickAdd(selectedDate: LocalDate, onAdd: (String, Boolean, Int, 
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = {
-                onAdd(text, allDay, hour, minute, endDate)
+                onAdd(text, allDay, hour, minute, endDate, endHour.takeIf { !allDay && endTimeOn }, endMinute.takeIf { !allDay && endTimeOn })
                 text = ""
                 endDate = null
+                endTimeOn = false
             }) { Text("추가") }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1032,6 +1073,18 @@ private fun TaskQuickAdd(selectedDate: LocalDate, onAdd: (String, Boolean, Int, 
                 NumberDropdown(label = "시", value = hour, range = 0..23, onValue = { hour = it }, modifier = Modifier.width(96.dp))
                 Text(":")
                 NumberDropdown(label = "분", value = minute, range = 0..59, onValue = { minute = it }, modifier = Modifier.width(96.dp))
+            }
+        }
+        // 종료 시각(선택 사항) — 시작 시각만으로 끝나는 일이 아니면 함께 지정.
+        if (!allDay) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("종료 시각", style = MaterialTheme.typography.bodyMedium)
+                Switch(checked = endTimeOn, onCheckedChange = { endTimeOn = it })
+                if (endTimeOn) {
+                    NumberDropdown(label = "시", value = endHour, range = 0..23, onValue = { endHour = it }, modifier = Modifier.width(96.dp))
+                    Text(":")
+                    NumberDropdown(label = "분", value = endMinute, range = 0..59, onValue = { endMinute = it }, modifier = Modifier.width(96.dp))
+                }
             }
         }
         // 여러 날에 걸친 일이면 종료일을 지정한다(캘린더에 bar 로 걸쳐 표시).
@@ -1059,51 +1112,5 @@ private fun TaskQuickAdd(selectedDate: LocalDate, onAdd: (String, Boolean, Int, 
             },
             onDismiss = { showEndPicker = false },
         )
-    }
-}
-
-/** 시/분 선택 — 드롭다운 목록에서 고르거나 숫자를 직접 입력. (시계 다이얼 대체) */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun NumberDropdown(
-    label: String,
-    value: Int,
-    range: IntRange,
-    onValue: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    var text by remember(value) { mutableStateOf(value.toString().padStart(2, '0')) }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier,
-    ) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = { input ->
-                val digits = input.filter { it.isDigit() }.take(2)
-                text = digits
-                digits.toIntOrNull()?.let { if (it in range) onValue(it) }
-            },
-            label = { Text(label) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            range.forEach { n ->
-                DropdownMenuItem(
-                    text = { Text(n.toString().padStart(2, '0')) },
-                    onClick = {
-                        onValue(n)
-                        text = n.toString().padStart(2, '0')
-                        expanded = false
-                    },
-                )
-            }
-        }
     }
 }

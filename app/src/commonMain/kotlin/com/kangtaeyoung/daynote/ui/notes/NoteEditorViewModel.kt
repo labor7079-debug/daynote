@@ -22,6 +22,7 @@ import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.SuggestTitleUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.UpdateNoteUseCase
+import com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +51,7 @@ class NoteEditorViewModel(
     private val addTask: AddTaskUseCase,
     private val toggleTask: ToggleTaskUseCase,
     private val deleteTask: DeleteTaskUseCase,
+    private val updateTask: UpdateTaskUseCase,
     private val suggestTitle: SuggestTitleUseCase,
     private val settings: SettingsRepository,
     private val findRelatedNotes: FindRelatedNotesUseCase,
@@ -202,6 +204,11 @@ class NoteEditorViewModel(
 
     fun toggle(taskId: String) {
         viewModelScope.launch { toggleTask(taskId) }
+    }
+
+    /** 수정 다이얼로그 저장 — 내용·날짜·시각·기간이 이미 반영된 [task] 를 그대로 영속화. */
+    fun editTask(task: Task) {
+        viewModelScope.launch { updateTask(task) }
     }
 
     fun removeTask(taskId: String) {

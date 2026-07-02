@@ -67,6 +67,11 @@ class TodoViewModel(
         viewModelScope.launch { deleteTask(id) }
     }
 
+    /** 수정 다이얼로그 저장 — 내용·날짜·시각·기간이 이미 반영된 [task] 를 그대로 영속화. */
+    fun edit(task: Task) {
+        viewModelScope.launch { updateTask(task) }
+    }
+
     /** 길게 누름 메뉴 — 할 일을 다른 날짜로 이동(마감일 교체, 시각·기간 길이 유지). */
     fun moveToDate(task: Task, date: LocalDate) {
         viewModelScope.launch {

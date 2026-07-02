@@ -109,13 +109,33 @@ class CalendarViewModel(
     /**
      * 선택 날짜에 할 일 추가. [allDay]=true 면 그 날짜 종일, false 면 [hour]:[minute] 시각으로 dueDate 주입.
      * [endDate] 를 주면 여러 날에 걸친 기간 할 일(선택 날짜 이후여야 유효).
+     * 시각 지정([allDay]=false)이면 [endHour]:[endMinute] 로 종료 시각도 담을 수 있다 —
+     * 종료일 없이 종료 시각만 주면 같은 날 시각 범위(예: 14:00~16:00)가 된다.
      */
-    fun addTaskForSelectedDate(text: String, allDay: Boolean, hour: Int, minute: Int, endDate: LocalDate? = null) {
+    fun addTaskForSelectedDate(
+        text: String,
+        allDay: Boolean,
+        hour: Int,
+        minute: Int,
+        endDate: LocalDate? = null,
+        endHour: Int? = null,
+        endMinute: Int? = null,
+    ) {
         if (text.isBlank()) return
         val date = _selectedDate.value
         val due = if (allDay) date.startOfDayMillis() else date.atTimeMillis(hour, minute)
-        val end = endDate?.takeIf { it > date }?.startOfDayMillis()
+        val endDay = endDate?.takeIf { it > date }
+        val end = if (!allDay && endHour != null) {
+            (endDay ?: date).atTimeMillis(endHour, endMinute ?: 0).takeIf { it > due }
+        } else {
+            endDay?.startOfDayMillis()
+        }
         viewModelScope.launch { addTask(text, noteId = null, dueDate = due, allDay = allDay, endDate = end) }
+    }
+
+    /** 수정 다이얼로그 저장 — 내용·날짜·시각·기간이 이미 반영된 [task] 를 그대로 영속화. */
+    fun editTask(task: Task) {
+        viewModelScope.launch { updateTask(task) }
     }
 
     fun toggle(taskId: String) {

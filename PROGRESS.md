@@ -4,7 +4,17 @@
 >
 > _최종 업데이트: 2026-07-02_
 
-## 현재 위치: **v0.2.1 업데이트 업로드 대기(2026-07-02)** — v0.2.0(미업로드)에 캘린더 bar·드롭다운·위젯 크기 반영을 합쳐 v0.2.1 로 통합
+## 현재 위치: **v0.3.0 업데이트 업로드 대기(2026-07-02 저녁)** — To-Do 수정·종료시각·우클릭 메뉴·휠 내비 반영, AAB(versionCode 4)·MSI 1.2.0 빌드됨
+
+### 🔼 v0.3.0 업데이트 (2026-07-02 저녁 — 업로드 대기, v0.2.1 은 미업로드 상태에서 통합됨)
+- **To-Do 수정 기능**: 길게 누름/우클릭 메뉴에 **"수정"** — `ui/components/EditTaskDialog.kt`(신규). 내용·시작 날짜·종일/시작 시각·**종료 시각**·**종료일**(하루 초과 기간)을 한 번에 수정. 날짜 없는 할 일은 일정을 안 건드리면 계속 날짜 없음(scheduleTouched 가드). 캘린더 상세·To-Do 탭·메모 에디터 3곳 전부 연결(NoteEditorViewModel 에 UpdateTaskUseCase 추가).
+- **마우스 우클릭 = 길게 누름 메뉴**(PC): `ui/components/PointerExt.kt`(신규) `Modifier.onRightClick` — 공용 코드(PointerEventType.Press + buttons.isSecondaryPressed), 터치는 자연 no-op. TaskRow 텍스트에 적용.
+- **할 일 추가란 종료 시각**: 캘린더 상세 TaskQuickAdd 에 "종료 시각" 스위치+시/분 — 종료일 없이 종료 시각만 주면 **같은 날 시각 범위**(예 14:00~16:00). `addTaskForSelectedDate(..., endHour, endMinute)`.
+- **endDate 의미 확장(스키마 변경 없음, DB v5 유지)**: 날짜만=자정 millis(기존), **시각까지=그 시각 millis**(신규). `Task.spansDays()`(EditTaskDialog.kt)로 "하루 초과"만 캘린더 bar — 같은 날 시각 범위는 칩("14:00~16:00" 표기, TaskRow·TaskLineChip). `core/DateUtils`: isMidnight/hourOfDay/minuteOfHour 추가. NumberDropdown 은 `ui/components/NumberDropdown.kt` 로 승격(공용).
+- **휠 스크롤 캘린더 내비**(PC·태블릿): 캘린더 영역에서 휠 아래=다음 주/월, 위=이전(navDir 슬라이드 애니 그대로). Scroll 이벤트 consume 으로 2단 레이아웃 세로 스크롤과 충돌 없음.
+- **버전**: versionCode **4** / versionName **0.3.0** / MSI **1.2.0**.
+- **산출물(17:59)**: AAB `app/build/outputs/bundle/release/app-release.aab`(13.4MB, 서명) · MSI `app/build/compose/binaries/main/msi/DayNote-1.2.0.msi`(68.1MB) · 폴더형 `.../app/DayNote/`.
+- **개발자 할 일**: ① Play Console → 내부 테스트 → 새 버전 만들기 → AAB 업로드(`4 (0.3.0)`) → 출시 노트 → 저장 및 출시. ② PC 는 MSI 실행(제자리 업그레이드). ③ 기기 검증: 수정 다이얼로그(시각 범위·기간)·우클릭 메뉴(PC)·종료 시각 추가·휠 내비·기존 기간 bar 회귀 확인.
 
 ### ✅ Play 내부 테스트 첫 배포 완료 (2026-07-02 오전)
 - 개발자 계정 승인 → 앱 생성 → **AAB(versionCode 1) 내부 테스트 게시** → 테스터 등록 → **갤럭시 기기에 스토어 경유 설치 완료**.

@@ -52,6 +52,20 @@ fun Long.toHourMinuteLabel(tz: TimeZone = appTimeZone): String {
 }
 
 /**
+ * 이 시각이 자정(=날짜만 지정)인지. Task.endDate 는 날짜만 지정하면 자정 millis,
+ * 종료 '시각'까지 지정하면 그 시각 millis 라서 이 검사로 둘을 구분한다.
+ */
+fun Long.isMidnight(tz: TimeZone = appTimeZone): Boolean = this == toLocalDate(tz).startOfDayMillis(tz)
+
+/** epoch millis 의 시(0-23). (할 일 수정 다이얼로그 초기값용) */
+fun Long.hourOfDay(tz: TimeZone = appTimeZone): Int =
+    Instant.fromEpochMilliseconds(this).toLocalDateTime(tz).hour
+
+/** epoch millis 의 분(0-59). (할 일 수정 다이얼로그 초기값용) */
+fun Long.minuteOfHour(tz: TimeZone = appTimeZone): Int =
+    Instant.fromEpochMilliseconds(this).toLocalDateTime(tz).minute
+
+/**
  * ISO 8601 연중 주차(W1~W53) — "그 주의 목요일이 속한 해의 몇 번째 주"로 정의된다.
  * (연초·연말 경계 주도 표준대로: 예. 2027-01-01(금)은 2026년 W53.)
  */
