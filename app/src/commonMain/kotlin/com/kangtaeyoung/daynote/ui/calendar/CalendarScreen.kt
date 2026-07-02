@@ -78,6 +78,7 @@ import com.kangtaeyoung.daynote.data.repository.SettingsRepository
 import com.kangtaeyoung.daynote.data.sync.CalendarSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncState
+import com.kangtaeyoung.daynote.domain.holiday.KoreanHolidays
 import com.kangtaeyoung.daynote.domain.model.Note
 import com.kangtaeyoung.daynote.domain.model.Task
 import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
@@ -422,6 +423,7 @@ private fun DayCell(
     onOpenNote: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val holidayName = KoreanHolidays.nameOf(day)
     val tileColor = when {
         !inMonth -> Color.Transparent
         isSelected -> MaterialTheme.colorScheme.primaryContainer
@@ -446,10 +448,19 @@ private fun DayCell(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DayNumber(day.dayOfMonth, isToday, inMonth, isSunday)
+            DayNumber(day.dayOfMonth, isToday, inMonth, isRed = isSunday || holidayName != null)
             DensityDots(notes, tasks)
         }
         Spacer(Modifier.height(4.dp))
+        if (holidayName != null && inMonth) {
+            Text(
+                text = holidayName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         notes.take(2).forEach { note ->
             Text(
                 text = note.title.ifBlank { "(제목 없음)" },
@@ -471,9 +482,9 @@ private fun DayCell(
     }
 }
 
-/** 오늘은 슬레이트 원으로 감싼 숫자, 그 외는 색만(일요일=클레이, 이번달 밖=흐리게). */
+/** 오늘은 슬레이트 원으로 감싼 숫자, 그 외는 색만(일요일·공휴일=클레이, 이번달 밖=흐리게). */
 @Composable
-private fun DayNumber(dayOfMonth: Int, isToday: Boolean, inMonth: Boolean, isSunday: Boolean) {
+private fun DayNumber(dayOfMonth: Int, isToday: Boolean, inMonth: Boolean, isRed: Boolean) {
     if (isToday) {
         Box(
             modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
@@ -492,7 +503,7 @@ private fun DayNumber(dayOfMonth: Int, isToday: Boolean, inMonth: Boolean, isSun
             style = MaterialTheme.typography.labelLarge,
             color = when {
                 !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                isSunday -> MaterialTheme.colorScheme.tertiary
+                isRed -> MaterialTheme.colorScheme.tertiary
                 else -> MaterialTheme.colorScheme.onSurface
             },
         )
@@ -545,6 +556,7 @@ private fun WeekAgenda(
             val isToday = day == today
             val isSunday = day.dayOfWeek == DayOfWeek.SUNDAY
             val isWeekend = isSunday || day.dayOfWeek == DayOfWeek.SATURDAY
+            val holidayName = KoreanHolidays.nameOf(day)
             val tileColor = when {
                 day == selected -> MaterialTheme.colorScheme.primaryContainer
                 isWeekend -> MaterialTheme.colorScheme.secondaryContainer
@@ -570,15 +582,26 @@ private fun WeekAgenda(
                     Text(
                         koreanDow(day.dayOfWeek),
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (isSunday) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isSunday || holidayName != null) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(3.dp))
-                    DayNumber(day.dayOfMonth, isToday, inMonth = true, isSunday = isSunday)
+                    DayNumber(day.dayOfMonth, isToday, inMonth = true, isRed = isSunday || holidayName != null)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
+                    if (holidayName != null) {
+                        Text(
+                            text = holidayName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     if (notes.isEmpty() && tasks.isEmpty()) {
-                        Text("—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (holidayName == null) {
+                            Text("—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     } else {
                         notes.take(3).forEach { n ->
                             Text(
@@ -626,14 +649,25 @@ private fun DayDetail(
     onCopyTask: (Task, LocalDate) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        // 날짜 헤더 — 세리프 + 클레이 스와시(캘린더 헤더와 통일).
-        Text(
-            text = date.dayLabel(),
-            style = MaterialTheme.typography.titleLarge,
-            fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        // 날짜 헤더 — 세리프 + 클레이 스와시(캘린더 헤더와 통일). 공휴일이면 이름을 클레이로 병기.
+        val holidayName = KoreanHolidays.nameOf(date)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = date.dayLabel(),
+                style = MaterialTheme.typography.titleLarge,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Medium,
+                color = if (holidayName != null) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
+            )
+            if (holidayName != null) {
+                Text(
+                    text = holidayName,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        }
         Box(
             modifier = Modifier
                 .padding(top = 1.dp)

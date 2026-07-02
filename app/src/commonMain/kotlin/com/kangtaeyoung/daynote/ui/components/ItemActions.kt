@@ -34,6 +34,7 @@ import androidx.compose.ui.window.Dialog
 import com.kangtaeyoung.daynote.core.firstOfMonthPlusMonths
 import com.kangtaeyoung.daynote.core.monthGridDays
 import com.kangtaeyoung.daynote.core.today
+import com.kangtaeyoung.daynote.domain.holiday.KoreanHolidays
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.isoDayNumber
@@ -238,7 +239,8 @@ private fun MiniDayCell(
                 color = when {
                     isTarget -> MaterialTheme.colorScheme.onPrimary
                     !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    day.dayOfWeek == DayOfWeek.SUNDAY -> MaterialTheme.colorScheme.tertiary
+                    // 일요일 + 「관공서의 공휴일에 관한 규정」 공휴일(월력요항 기준)=클레이.
+                    day.dayOfWeek == DayOfWeek.SUNDAY || KoreanHolidays.isHoliday(day) -> MaterialTheme.colorScheme.tertiary
                     else -> MaterialTheme.colorScheme.onSurface
                 },
             )
