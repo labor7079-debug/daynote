@@ -136,7 +136,8 @@ fun SettingsScreen(
 
             if (!vm.syncAvailable) {
                 Text(
-                    "이 플랫폼에서는 동기화를 지원하지 않습니다(데스크톱).",
+                    "데스크톱 OAuth 클라이언트가 설정되지 않았습니다 — keystore.properties 에 " +
+                        "googleDesktopClientId/googleDesktopClientSecret 를 추가한 빌드에서 사용할 수 있습니다.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

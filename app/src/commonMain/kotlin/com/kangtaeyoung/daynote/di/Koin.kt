@@ -16,6 +16,8 @@ import com.kangtaeyoung.daynote.data.repository.TaskRepository
 import com.kangtaeyoung.daynote.data.repository.TaskRepositoryImpl
 import com.kangtaeyoung.daynote.data.sync.AutoSyncCoordinator
 import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
+import com.kangtaeyoung.daynote.data.sync.GoogleCalendarApi
+import com.kangtaeyoung.daynote.data.sync.GoogleCalendarSyncCore
 import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
 import com.kangtaeyoung.daynote.data.sync.SupabaseCloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.supabase.SupabaseSyncClient
@@ -80,6 +82,10 @@ val repositoryModule: Module = module {
     // AI(Phase 4-B): OpenAI 단일. ApiKeyProvider 는 platformModule 이 제공.
     single { OpenAiClient() }
     single<AiRepository> { AiRepositoryImpl(get(), get(), get()) }
+    // 구글 캘린더 동기화 본체(push + 공유 캘린더 pull) — Ktor 라 양 플랫폼 공유.
+    // 인증(토큰)만 플랫폼 매니저(CalendarSyncManager, platformModule 제공)가 담당한다.
+    single { GoogleCalendarApi() }
+    single { GoogleCalendarSyncCore(get(), get(), get(), get(), get()) }
     // 클라우드 동기화(Phase 6, Supabase) — Ktor 라 양 플랫폼 공유. SecureStore 는 platformModule 제공.
     single { SupabaseSyncClient() }
     single<CloudSyncManager> { SupabaseCloudSyncManager(get(), get(), get(), get(), get()) }

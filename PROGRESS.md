@@ -4,7 +4,15 @@
 >
 > _최종 업데이트: 2026-07-03_
 
-## 현재 위치: **v0.4.1 업데이트 업로드 대기(2026-07-03)** — 구글 공유 캘린더 표시 + 자동 동기화 + 아이콘 UI + AI 이력(브랜치 병합) + v0.3.x(위젯·시각 입력·세리프) 포함
+## 현재 위치: **v0.5.0 업데이트 준비 중(2026-07-03)** — PC 구글 캘린더 동기화(데스크톱 OAuth) 구현 완료 · **keystore.properties 에 클라이언트 값 추가 대기**
+
+### 🔼 v0.5.0 — PC(데스크톱) 구글 캘린더 동기화 (2026-07-03)
+- **데스크톱 OAuth(PKCE 루프백)**: 설정의 "구글 로그인" → 시스템 브라우저 동의 → `http://127.0.0.1:{임시포트}` 콜백 → 토큰 교환. 리프레시 토큰을 `~/.daynote/secure.properties`(DesktopSecureStore)에 저장해 **재시작에도 무음 갱신**(브라우저 재동의 불필요). 새 의존성 0(ServerSocket + HttpURLConnection + kotlinx-serialization). `DesktopGoogleAuth.kt`(신규).
+- **동기화 본체 commonMain 승격**: androidMain `CalendarApi` → 공용 `GoogleCalendarApi`(Ktor, 양 플랫폼) + push/공유 캘린더 pull 로직 → `GoogleCalendarSyncCore`(공용). Android/Desktop 매니저는 **인증(토큰)만 담당**하고 본체는 코어에 위임 — PC 에서도 push·공유 캘린더 pull·"표시할 캘린더" 전부 동작. 스코프 상수도 공용(`GOOGLE_CALENDAR_SCOPES`).
+- **클라이언트 주입**: `keystore.properties` 의 `googleDesktopClientId`/`googleDesktopClientSecret` → 빌드 태스크(`generateDesktopOAuthProps`)가 데스크톱 리소스로 주입 → 런타임 로드(`DesktopOAuthConfig`). **값이 없으면 데스크톱 동기화 비활성**(설정에 안내문). ⚠️ **현재 keystore.properties 에 값 미추가 — 추가 후 데스크톱 배포물 재빌드 필요.**
+- **버전**: versionCode **9** / versionName **0.5.0** / MSI **1.4.0**. (산출물은 클라이언트 값 추가 후 빌드)
+
+## (이전) v0.4.1 — 구글 공유 캘린더 표시 + 자동 동기화 + 아이콘 UI + AI 이력(브랜치 병합) + v0.3.x(위젯·시각 입력·세리프) 포함
 
 ### 🔼 v0.4.1 업데이트 (2026-07-03 — 업로드 대기, v0.3.1~v0.4.0 미업로드분 포함)
 - **구글 캘린더 "표시할 캘린더"(공유받은 캘린더 포함, 읽기 전용)** — 구글 캘린더 사이드바("다른 캘린더") 컨셉:

@@ -16,7 +16,7 @@ import org.koin.dsl.module
 /** Android: Koin 의 `androidContext` 로 앱 전용 DB 경로 빌더 + 동기화 매니저 + 키 저장소 + 알림 예약기를 등록한다. */
 actual fun platformModule(): Module = module {
     single { appDatabaseBuilder(androidContext()) }
-    single<CalendarSyncManager> { AndroidCalendarSyncManager(androidContext(), get(), get(), get(), get()) }
+    single<CalendarSyncManager> { AndroidCalendarSyncManager(androidContext(), get()) }
     single<ApiKeyProvider> { AndroidApiKeyProvider(androidContext()) }
     single<SecureStore> { AndroidSecureStore(androidContext()) }
     single<TaskReminderScheduler> { AndroidTaskReminderScheduler(androidContext()) }

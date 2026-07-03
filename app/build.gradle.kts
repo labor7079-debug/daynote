@@ -18,6 +18,22 @@ val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
 
+// 데스크톱 구글 OAuth 클라이언트(ID/secret) — keystore.properties → 리소스 파일로 주입해
+// 런타임에 클래스패스에서 읽는다(DesktopOAuthConfig). 값이 없으면 빈 파일 → 데스크톱 동기화 비활성.
+val desktopOAuthResDir = layout.buildDirectory.dir("generated/desktopOAuthRes")
+val generateDesktopOAuthProps = tasks.register("generateDesktopOAuthProps") {
+    val clientId = keystoreProps.getProperty("googleDesktopClientId").orEmpty()
+    val clientSecret = keystoreProps.getProperty("googleDesktopClientSecret").orEmpty()
+    inputs.property("clientId", clientId)
+    inputs.property("clientSecret", clientSecret)
+    outputs.dir(desktopOAuthResDir)
+    doLast {
+        val file = desktopOAuthResDir.get().file("google-oauth-desktop.properties").asFile
+        file.parentFile.mkdirs()
+        file.writeText("clientId=$clientId\nclientSecret=$clientSecret\n")
+    }
+}
+
 kotlin {
     androidTarget {
         compilerOptions {
@@ -28,7 +44,9 @@ kotlin {
     jvm("desktop")
 
     sourceSets {
-        val desktopMain by getting
+        val desktopMain by getting {
+            resources.srcDir(generateDesktopOAuthProps)
+        }
         val desktopTest by getting
 
         commonMain.dependencies {
@@ -106,8 +124,8 @@ android {
         applicationId = "com.kangtaeyoung.daynote"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.4.1"
+        versionCode = 9
+        versionName = "0.5.0"
     }
 
     signingConfigs {
@@ -168,7 +186,7 @@ compose.desktop {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "DayNote"
             // MSI 가 기존 설치를 제자리 업그레이드하도록 앱 업데이트마다 함께 올린다.
-            packageVersion = "1.3.1"
+            packageVersion = "1.4.0"
         }
     }
 }
