@@ -22,6 +22,7 @@
             android:id="@+id/widget_month_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="serif"
             android:textSize="13sp"
             android:textStyle="bold"
             android:textColor="@color/widgetText"
@@ -44,10 +45,13 @@
                 android:textColor="@color/widgetAccent" />
         </LinearLayout>
 
+        <!-- 6주 그리드가 남은 높이를 전부 차지 — 행(widget_month_row)이 weight 로 균등 분할돼
+             위젯을 늘리거나 줄여도 달력이 잘리거나 위로 압축되지 않는다. -->
         <LinearLayout
             android:id="@+id/widget_month_grid"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:orientation="vertical" />
     </LinearLayout>
 
@@ -70,6 +74,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:fontFamily="serif"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="@color/widgetText" />
@@ -90,33 +95,51 @@
             android:id="@+id/widget_month_holiday"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="serif"
             android:textSize="11sp"
             android:maxLines="1"
             android:ellipsize="end"
             android:textColor="@color/widgetAccent"
             android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/widget_mline1"
-            style="@style/WidgetLine" />
+        <FrameLayout
+            android:id="@+id/widget_mslot1"
+            style="@style/WidgetLineSlot">
+            <TextView
+                android:id="@+id/widget_mline1"
+                style="@style/WidgetLine" />
+        </FrameLayout>
 
-        <TextView
-            android:id="@+id/widget_mline2"
-            style="@style/WidgetLine" />
+        <FrameLayout
+            android:id="@+id/widget_mslot2"
+            style="@style/WidgetLineSlot">
+            <TextView
+                android:id="@+id/widget_mline2"
+                style="@style/WidgetLine" />
+        </FrameLayout>
 
-        <TextView
-            android:id="@+id/widget_mline3"
-            style="@style/WidgetLine" />
+        <FrameLayout
+            android:id="@+id/widget_mslot3"
+            style="@style/WidgetLineSlot">
+            <TextView
+                android:id="@+id/widget_mline3"
+                style="@style/WidgetLine" />
+        </FrameLayout>
 
-        <TextView
-            android:id="@+id/widget_mline4"
-            style="@style/WidgetLine" />
+        <FrameLayout
+            android:id="@+id/widget_mslot4"
+            style="@style/WidgetLineSlot">
+            <TextView
+                android:id="@+id/widget_mline4"
+                style="@style/WidgetLine" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/widget_month_more"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="3dp"
+            android:fontFamily="serif"
             android:textSize="11sp"
             android:textColor="@color/widgetTextDim"
             android:visibility="gone" />
@@ -124,9 +147,11 @@
         <TextView
             android:id="@+id/widget_month_empty"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
             android:text="메모·할 일 없음"
+            android:fontFamily="serif"
             android:textSize="11sp"
             android:textColor="@color/widgetTextDim"
             android:visibility="gone" />

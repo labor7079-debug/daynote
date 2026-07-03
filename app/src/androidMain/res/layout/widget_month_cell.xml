@@ -9,5 +9,6 @@
     android:gravity="center"
     android:paddingTop="1dp"
     android:paddingBottom="1dp"
+    android:fontFamily="serif"
     android:textSize="10sp"
     android:textColor="@color/widgetText" />

@@ -1070,9 +1070,9 @@ private fun TaskQuickAdd(
             Text("종일", style = MaterialTheme.typography.bodyMedium)
             Switch(checked = allDay, onCheckedChange = { allDay = it })
             if (!allDay) {
-                NumberDropdown(label = "시", value = hour, range = 0..23, onValue = { hour = it }, modifier = Modifier.width(96.dp))
+                NumberDropdown(label = "시", value = hour, range = 0..23, onValue = { hour = it }, modifier = Modifier.width(64.dp))
                 Text(":")
-                NumberDropdown(label = "분", value = minute, range = 0..59, onValue = { minute = it }, modifier = Modifier.width(96.dp))
+                NumberDropdown(label = "분", value = minute, range = 0..59, onValue = { minute = it }, modifier = Modifier.width(64.dp))
             }
         }
         // 종료 시각(선택 사항) — 시작 시각만으로 끝나는 일이 아니면 함께 지정.
@@ -1081,9 +1081,9 @@ private fun TaskQuickAdd(
                 Text("종료 시각", style = MaterialTheme.typography.bodyMedium)
                 Switch(checked = endTimeOn, onCheckedChange = { endTimeOn = it })
                 if (endTimeOn) {
-                    NumberDropdown(label = "시", value = endHour, range = 0..23, onValue = { endHour = it }, modifier = Modifier.width(96.dp))
+                    NumberDropdown(label = "시", value = endHour, range = 0..23, onValue = { endHour = it }, modifier = Modifier.width(64.dp))
                     Text(":")
-                    NumberDropdown(label = "분", value = endMinute, range = 0..59, onValue = { endMinute = it }, modifier = Modifier.width(96.dp))
+                    NumberDropdown(label = "분", value = endMinute, range = 0..59, onValue = { endMinute = it }, modifier = Modifier.width(64.dp))
                 }
             }
         }

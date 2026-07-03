@@ -3,11 +3,13 @@
     <!-- 런처/윈도우용 베이스 테마. 실제 색·타이포는 Compose Material3(DayNoteTheme)가 그린다. -->
     <style name="Theme.DayNote" parent="android:Theme.Material.Light.NoActionBar" />
 
-    <!-- 홈 위젯의 항목 한 줄(메모/할 일 공용). 할 일 배경 박스는 코드에서 입힌다. -->
+    <!-- 홈 위젯의 항목 한 줄(메모/할 일 공용). 할 일 배경 박스는 코드에서 입힌다.
+         WidgetLineSlot 안에서 세로 중앙 정렬 — 박스는 글자 높이만 감싼다. -->
     <style name="WidgetLine">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:layout_gravity">center_vertical</item>
+        <item name="android:fontFamily">serif</item>
         <item name="android:paddingLeft">5dp</item>
         <item name="android:paddingRight">5dp</item>
         <item name="android:paddingTop">2dp</item>
@@ -16,6 +18,14 @@
         <item name="android:maxLines">1</item>
         <item name="android:ellipsize">end</item>
         <item name="android:textColor">@color/widgetText</item>
+    </style>
+
+    <!-- 항목 줄을 감싸는 weight 슬롯 — 보이는 줄들이 위젯의 남은 높이를 균등 분할해
+         내용이 위젯 크기에 맞춰 가득 찬다(표시/숨김은 코드에서 슬롯 단위로). -->
+    <style name="WidgetLineSlot">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
         <item name="android:visibility">gone</item>
     </style>
 
@@ -25,6 +35,7 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
         <item name="android:gravity">center</item>
+        <item name="android:fontFamily">serif</item>
         <item name="android:textSize">10sp</item>
         <item name="android:textColor">@color/widgetTextDim</item>
     </style>

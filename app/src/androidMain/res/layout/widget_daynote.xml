@@ -2,6 +2,8 @@
 <!--
   DayNote 홈 위젯 — 오늘 날짜 헤더(+공휴일명) + 그날의 메모·할 일 최대 6줄 + ⊕(앱 열기).
   할 일 줄은 코드에서 widget_task_bg 배경을 입혀 메모와 구분한다(달력 칸과 같은 컨셉).
+  각 줄은 weight 슬롯(WidgetLineSlot)에 담겨 위젯 높이를 균등 분할한다 — 내용이 위쪽에
+  몰리지 않고 위젯 크기에 맞춰 가득 찬다.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -21,6 +23,7 @@
             android:id="@+id/widget_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="serif"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/widgetText" />
@@ -31,6 +34,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
+            android:fontFamily="serif"
             android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="end"
@@ -49,35 +53,60 @@
             android:textColor="@color/widgetText" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/widget_line1"
-        style="@style/WidgetLine" />
+    <FrameLayout
+        android:id="@+id/widget_slot1"
+        style="@style/WidgetLineSlot">
+        <TextView
+            android:id="@+id/widget_line1"
+            style="@style/WidgetLine" />
+    </FrameLayout>
 
-    <TextView
-        android:id="@+id/widget_line2"
-        style="@style/WidgetLine" />
+    <FrameLayout
+        android:id="@+id/widget_slot2"
+        style="@style/WidgetLineSlot">
+        <TextView
+            android:id="@+id/widget_line2"
+            style="@style/WidgetLine" />
+    </FrameLayout>
 
-    <TextView
-        android:id="@+id/widget_line3"
-        style="@style/WidgetLine" />
+    <FrameLayout
+        android:id="@+id/widget_slot3"
+        style="@style/WidgetLineSlot">
+        <TextView
+            android:id="@+id/widget_line3"
+            style="@style/WidgetLine" />
+    </FrameLayout>
 
-    <TextView
-        android:id="@+id/widget_line4"
-        style="@style/WidgetLine" />
+    <FrameLayout
+        android:id="@+id/widget_slot4"
+        style="@style/WidgetLineSlot">
+        <TextView
+            android:id="@+id/widget_line4"
+            style="@style/WidgetLine" />
+    </FrameLayout>
 
-    <TextView
-        android:id="@+id/widget_line5"
-        style="@style/WidgetLine" />
+    <FrameLayout
+        android:id="@+id/widget_slot5"
+        style="@style/WidgetLineSlot">
+        <TextView
+            android:id="@+id/widget_line5"
+            style="@style/WidgetLine" />
+    </FrameLayout>
 
-    <TextView
-        android:id="@+id/widget_line6"
-        style="@style/WidgetLine" />
+    <FrameLayout
+        android:id="@+id/widget_slot6"
+        style="@style/WidgetLineSlot">
+        <TextView
+            android:id="@+id/widget_line6"
+            style="@style/WidgetLine" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/widget_more"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="3dp"
+        android:fontFamily="serif"
         android:textSize="11sp"
         android:textColor="@color/widgetTextDim"
         android:visibility="gone" />
@@ -85,9 +114,11 @@
     <TextView
         android:id="@+id/widget_empty"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
         android:text="이 날의 메모·할 일이 없습니다. 탭하여 작성하세요."
+        android:fontFamily="serif"
         android:textSize="12sp"
         android:textColor="@color/widgetTextDim"
         android:visibility="gone" />

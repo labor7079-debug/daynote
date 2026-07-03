@@ -69,6 +69,11 @@ class DayNoteMonthWidgetProvider : AppWidgetProvider() {
             R.id.widget_mline1, R.id.widget_mline2, R.id.widget_mline3, R.id.widget_mline4,
         )
 
+        // 줄을 감싸는 weight 슬롯 — 표시/숨김은 슬롯 단위(보이는 줄들이 우측 높이를 균등 분할).
+        private val slotIds = intArrayOf(
+            R.id.widget_mslot1, R.id.widget_mslot2, R.id.widget_mslot3, R.id.widget_mslot4,
+        )
+
         /** 배치된 모든 월 그리드 위젯을 다시 그린다(앱 내 데이터 변경 시 호출). */
         fun updateAll(context: Context) {
             val mgr = AppWidgetManager.getInstance(context)
@@ -180,7 +185,7 @@ class DayNoteMonthWidgetProvider : AppWidgetProvider() {
             lineIds.forEachIndexed { i, id ->
                 if (i < lines.size) {
                     val line = lines[i]
-                    views.setViewVisibility(id, View.VISIBLE)
+                    views.setViewVisibility(slotIds[i], View.VISIBLE)
                     views.setTextViewText(id, line.text)
                     views.setInt(id, "setBackgroundResource", if (line.isTask) R.drawable.widget_task_bg else 0)
                     views.setTextColor(
@@ -188,7 +193,7 @@ class DayNoteMonthWidgetProvider : AppWidgetProvider() {
                         ContextCompat.getColor(context, if (line.done) R.color.widgetTextDim else R.color.widgetText),
                     )
                 } else {
-                    views.setViewVisibility(id, View.GONE)
+                    views.setViewVisibility(slotIds[i], View.GONE)
                 }
             }
             val remaining = (todayNotes.size - 2).coerceAtLeast(0) + (todayTasks.size - 2).coerceAtLeast(0)

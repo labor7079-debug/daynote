@@ -86,7 +86,7 @@ fun DayNoteTheme(
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = dayNoteTypography(),
         content = content,
     )
 }

@@ -2,9 +2,21 @@
 
 > 내일 이어가기 위한 인수인계 메모. 상세 명세는 [CLAUDE.md](CLAUDE.md), 빌드 절차는 [BUILD.md](BUILD.md).
 >
-> _최종 업데이트: 2026-07-02_
+> _최종 업데이트: 2026-07-03_
 
-## 현재 위치: **v0.3.0 업데이트 업로드 대기(2026-07-02 저녁)** — To-Do 수정·종료시각·우클릭 메뉴·휠 내비 반영, AAB(versionCode 4)·MSI 1.2.0 빌드됨
+## 현재 위치: **v0.3.1 업데이트 업로드 대기(2026-07-03)** — 위젯 가득 채움·시각 입력 '분' 잘림 수정·세리프 글씨체 전앱 통일(Noto Serif KR 내장)
+
+### 🔼 v0.3.1 업데이트 (2026-07-03 — 업로드 대기, v0.3.0 미업로드분 포함)
+- **위젯 내용 가득 채움**(기기 스크린샷 피드백): 두 위젯 모두 내용이 위에 몰리고 아래가 비던 문제 →
+  ① 월 위젯 미니 달력: 그리드가 남은 높이 전체 차지 + 6주 행이 weight 균등 분할(`widget_month.xml`·`widget_month_row.xml`) — 기본 크기에서 잘리던 마지막 주도 항상 표시, 위젯을 늘리면 달력도 같이 늘어남.
+  ② 항목 줄(하루 6줄·월 우측 4줄): 각 줄을 weight 슬롯(`WidgetLineSlot`, FrameLayout)으로 감싸 보이는 줄들이 높이를 균등 분할, 할 일 박스는 글자 높이만 감싸고 슬롯 중앙 정렬. 표시/숨김은 Provider 에서 슬롯 단위.
+- **To-Do 시각 입력 '분' 잘림 수정**: `NumberDropdown` 컴팩트화 — 드롭다운 화살표 제거+숫자 가운데 정렬, 폭 92/96→64dp. "종료 시각" 줄(라벨+토글+시:분)이 폰 다이얼로그 폭에 들어감. 탭=드롭다운·직접 입력 그대로. (EditTaskDialog·캘린더 상세 추가란 공용)
+- **세리프 글씨체 전앱 통일**(사용자 요청 — 초기 Warm Journal 세리프로 회귀·확대): v0.3.0 에서 "기본체 통일"로 세리프를 제거했던 방향을 뒤집어, **Noto Serif KR(OFL) 3종(Regular/Medium/Bold)을 내장**(`app/src/commonMain/composeResources/font/`, +약 22MB)하고 Material3 타입 스케일 15종 전부에 적용(`Type.kt` `dayNoteTypography()`). PC(Windows)는 시스템 세리프가 한글 미지원(맑은 고딕 폴백)이라 내장이 필수. Android 홈 위젯도 `android:fontFamily="serif"`(시스템 Noto Serif) 통일. `compose.resources.packageOfResClass = com.kangtaeyoung.daynote.resources`. 라이선스 고지: `THIRD_PARTY_LICENSES.md`.
+- **버전**: versionCode **5** / versionName **0.3.1** / MSI **1.2.1**.
+- **산출물**: AAB `app/build/outputs/bundle/release/app-release.aab`(서명) · MSI `app/build/compose/binaries/main/msi/DayNote-1.2.1.msi` · 폴더형 `.../app/DayNote/`.
+- **개발자 할 일**: ① Play Console → 내부 테스트 → 새 버전(`5 (0.3.1)`) AAB 업로드(v0.3.0 AAB 는 건너뜀). ② PC 는 MSI 실행(제자리 업그레이드). ③ 기기 검증: 위젯 두 종(내용 채움·세리프 — 기존 배치분은 삭제 후 재배치 권장)·할 일 수정 다이얼로그 시:분 표시·앱 전체 세리프(캘린더/메모/To-Do/설정/에디터)·v0.3.0 항목(수정 다이얼로그·우클릭·휠 내비) 회귀 확인.
+
+## (이전) v0.3.0 — To-Do 수정·종료시각·우클릭 메뉴·휠 내비, AAB(versionCode 4)·MSI 1.2.0 빌드됨(미업로드, v0.3.1 에 포함)
 
 ### 🔼 v0.3.0 업데이트 (2026-07-02 저녁 — 업로드 대기, v0.2.1 은 미업로드 상태에서 통합됨)
 - **To-Do 수정 기능**: 길게 누름/우클릭 메뉴에 **"수정"** — `ui/components/EditTaskDialog.kt`(신규). 내용·시작 날짜·종일/시작 시각·**종료 시각**·**종료일**(하루 초과 기간)을 한 번에 수정. 날짜 없는 할 일은 일정을 안 건드리면 계속 날짜 없음(scheduleTouched 가드). 캘린더 상세·To-Do 탭·메모 에디터 3곳 전부 연결(NoteEditorViewModel 에 UpdateTaskUseCase 추가).

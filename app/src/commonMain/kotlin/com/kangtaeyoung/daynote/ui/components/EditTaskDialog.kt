@@ -94,17 +94,17 @@ fun EditTaskDialog(
                 if (!allDay) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("시작 시각", style = MaterialTheme.typography.bodyMedium)
-                        NumberDropdown("시", startHour, 0..23, { startHour = it; scheduleTouched = true }, Modifier.width(92.dp))
+                        NumberDropdown("시", startHour, 0..23, { startHour = it; scheduleTouched = true }, Modifier.width(64.dp))
                         Text(":")
-                        NumberDropdown("분", startMinute, 0..59, { startMinute = it; scheduleTouched = true }, Modifier.width(92.dp))
+                        NumberDropdown("분", startMinute, 0..59, { startMinute = it; scheduleTouched = true }, Modifier.width(64.dp))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("종료 시각", style = MaterialTheme.typography.bodyMedium)
                         Switch(checked = endTimeOn, onCheckedChange = { endTimeOn = it; scheduleTouched = true })
                         if (endTimeOn) {
-                            NumberDropdown("시", endHour, 0..23, { endHour = it; scheduleTouched = true }, Modifier.width(92.dp))
+                            NumberDropdown("시", endHour, 0..23, { endHour = it; scheduleTouched = true }, Modifier.width(64.dp))
                             Text(":")
-                            NumberDropdown("분", endMinute, 0..59, { endMinute = it; scheduleTouched = true }, Modifier.width(92.dp))
+                            NumberDropdown("분", endMinute, 0..59, { endMinute = it; scheduleTouched = true }, Modifier.width(64.dp))
                         }
                     }
                 }

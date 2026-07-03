@@ -106,8 +106,8 @@ android {
         applicationId = "com.kangtaeyoung.daynote"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3.0"
+        versionCode = 5
+        versionName = "0.3.1"
     }
 
     signingConfigs {
@@ -153,6 +153,11 @@ dependencies {
     add("kspDesktop", libs.androidx.room.compiler)
 }
 
+// 내장 폰트(Noto Serif KR — 앱 전체 세리프 통일) 등 compose 리소스의 생성 클래스 패키지.
+compose.resources {
+    packageOfResClass = "com.kangtaeyoung.daynote.resources"
+}
+
 compose.desktop {
     application {
         mainClass = "com.kangtaeyoung.daynote.MainKt"
@@ -163,7 +168,7 @@ compose.desktop {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "DayNote"
             // MSI 가 기존 설치를 제자리 업그레이드하도록 앱 업데이트마다 함께 올린다.
-            packageVersion = "1.2.0"
+            packageVersion = "1.2.1"
         }
     }
 }

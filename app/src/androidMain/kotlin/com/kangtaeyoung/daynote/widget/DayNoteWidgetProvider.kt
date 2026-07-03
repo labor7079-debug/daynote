@@ -64,6 +64,12 @@ class DayNoteWidgetProvider : AppWidgetProvider() {
             R.id.widget_line4, R.id.widget_line5, R.id.widget_line6,
         )
 
+        // 줄을 감싸는 weight 슬롯 — 표시/숨김은 슬롯 단위(보이는 줄들이 위젯 높이를 균등 분할).
+        private val slotIds = intArrayOf(
+            R.id.widget_slot1, R.id.widget_slot2, R.id.widget_slot3,
+            R.id.widget_slot4, R.id.widget_slot5, R.id.widget_slot6,
+        )
+
         /** 배치된 모든 DayNote 위젯을 다시 그린다(앱 내 데이터 변경 시 호출). */
         fun updateAll(context: Context) {
             val mgr = AppWidgetManager.getInstance(context)
@@ -113,7 +119,7 @@ class DayNoteWidgetProvider : AppWidgetProvider() {
             lineIds.forEachIndexed { i, id ->
                 if (i < lines.size) {
                     val line = lines[i]
-                    views.setViewVisibility(id, View.VISIBLE)
+                    views.setViewVisibility(slotIds[i], View.VISIBLE)
                     views.setTextViewText(id, line.text)
                     // 할 일은 옅은 박스(앱 달력 칸의 TaskLineChip 과 같은 컨셉), 메모는 맨글자.
                     views.setInt(id, "setBackgroundResource", if (line.isTask) R.drawable.widget_task_bg else 0)
@@ -122,7 +128,7 @@ class DayNoteWidgetProvider : AppWidgetProvider() {
                         ContextCompat.getColor(context, if (line.done) R.color.widgetTextDim else R.color.widgetText),
                     )
                 } else {
-                    views.setViewVisibility(id, View.GONE)
+                    views.setViewVisibility(slotIds[i], View.GONE)
                 }
             }
 
