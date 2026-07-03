@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -39,6 +41,7 @@ import com.kangtaeyoung.daynote.ui.components.Period
 import com.kangtaeyoung.daynote.ui.components.PeriodFilterRow
 import com.kangtaeyoung.daynote.ui.components.SyncFab
 import com.kangtaeyoung.daynote.ui.components.TopDestination
+import com.kangtaeyoung.daynote.ui.theme.SearchMagnifierIcon
 import kotlinx.datetime.LocalDate
 import org.koin.compose.koinInject
 
@@ -75,7 +78,9 @@ fun NotesListScreen(
         topBar = {
             TopAppBar(
                 title = { Text("DayNote") },
-                actions = { TextButton(onClick = onSearch) { Text("검색") } },
+                actions = {
+                    IconButton(onClick = onSearch) { Icon(SearchMagnifierIcon, contentDescription = "검색") }
+                },
             )
         },
         bottomBar = {

@@ -36,6 +36,64 @@ val SettingsGearIcon: ImageVector by lazy {
     ).build()
 }
 
+/** 공용 24x24 단일 경로 아이콘 빌더 — 아래 아이콘들이 재사용한다. */
+private fun materialIcon(name: String, path: String): ImageVector =
+    ImageVector.Builder(
+        name = name,
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).addPath(
+        pathData = PathParser().parsePathString(path).toNodes(),
+        fill = SolidColor(Color.Black),
+    ).build()
+
+/** 뒤로(←). 상단바 내비게이션용 — "뒤로" 텍스트 버튼 대체. */
+val BackArrowIcon: ImageVector by lazy {
+    materialIcon("BackArrow", "M20,11H7.83l5.59,-5.59L12,4l-8,8l8,8l1.41,-1.41L7.83,13H20v-2z")
+}
+
+/** 추가(+). "추가"/"+ 추가" 텍스트 버튼 대체. */
+val AddPlusIcon: ImageVector by lazy {
+    materialIcon("AddPlus", "M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z")
+}
+
+/** 삭제(휴지통). 에디터 상단바 "삭제" 텍스트 버튼 대체. */
+val DeleteTrashIcon: ImageVector by lazy {
+    materialIcon(
+        "DeleteTrash",
+        "M6,19c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2V7H6v12zM19,4h-3.5l-1,-1h-5l-1,1H5v2h14V4z",
+    )
+}
+
+/** 검색(돋보기). 메모 목록 상단바 "검색" 텍스트 버튼 대체. */
+val SearchMagnifierIcon: ImageVector by lazy {
+    materialIcon(
+        "SearchMagnifier",
+        "M15.5,14h-0.79l-0.28,-0.27C15.41,12.59 16,11.11 16,9.5 16,5.91 13.09,3 9.5,3S3,5.91 3,9.5" +
+            " 5.91,16 9.5,16c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5z" +
+            "M9.5,14C7.01,14 5,11.99 5,9.5S7.01,5 9.5,5 14,7.01 14,9.5 11.99,14 9.5,14z",
+    )
+}
+
+/** 필기(펜). 에디터 상단바 "필기" 텍스트 버튼 대체(S펜 잉크 캔버스 진입). */
+val PenIcon: ImageVector by lazy {
+    materialIcon(
+        "Pen",
+        "M3,17.25V21h3.75L17.81,9.94l-3.75,-3.75L3,17.25zM20.71,7.04c0.39,-0.39 0.39,-1.02 0,-1.41" +
+            "l-2.34,-2.34c-0.39,-0.39,-1.02,-0.39,-1.41,0l-1.83,1.83l3.75,3.75L20.71,7.04z",
+    )
+}
+
+/** 닫기/지우기(✕). 결과 카드 "닫기"·인라인 "지우기" 텍스트 버튼 대체. */
+val CloseXIcon: ImageVector by lazy {
+    materialIcon(
+        "CloseX",
+        "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12z",
+    )
+}
+
 /** 동기화(원형 화살표 2개). 24x24 표준 sync 경로. */
 val SyncArrowsIcon: ImageVector by lazy {
     val path = "M12,4V1L8,5l4,4V6c3.31,0 6,2.69 6,6c0,1.01,-0.25,1.97,-0.7,2.8l1.46,1.46" +

@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -30,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.kangtaeyoung.daynote.ui.theme.BackArrowIcon
 
 /**
  * 자유 필기 화면(Phase 5-C). Compose Canvas 잉크 — 마우스·손가락·S펜 공용.
@@ -55,7 +58,9 @@ fun InkScreen(onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("필기") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("뒤로") } },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(BackArrowIcon, contentDescription = "뒤로") }
+                },
                 actions = {
                     TextButton(onClick = { ink.undo() }) { Text("실행취소") }
                     TextButton(onClick = { ink.clear() }) { Text("전체지우기") }

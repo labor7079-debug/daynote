@@ -5,10 +5,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -32,6 +35,7 @@ import com.kangtaeyoung.daynote.core.minuteOfHour
 import com.kangtaeyoung.daynote.core.startOfDayMillis
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.domain.model.Task
+import com.kangtaeyoung.daynote.ui.theme.CloseXIcon
 import kotlinx.datetime.LocalDate
 
 /**
@@ -118,8 +122,13 @@ fun EditTaskDialog(
                         )
                     }
                     if (endDate != null) {
-                        TextButton(onClick = { endDate = null; scheduleTouched = true }) {
-                            Text("지우기", style = MaterialTheme.typography.bodySmall)
+                        IconButton(onClick = { endDate = null; scheduleTouched = true }) {
+                            Icon(
+                                CloseXIcon,
+                                contentDescription = "종료일 지우기",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }

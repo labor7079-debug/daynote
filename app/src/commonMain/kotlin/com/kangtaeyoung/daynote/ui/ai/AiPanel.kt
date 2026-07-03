@@ -11,6 +11,8 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +37,7 @@ import com.kangtaeyoung.daynote.domain.model.AiResult
 import com.kangtaeyoung.daynote.domain.usecase.AskAiUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveAiResultsUseCase
 import com.kangtaeyoung.daynote.domain.usecase.RunAiActionUseCase
+import com.kangtaeyoung.daynote.ui.theme.CloseXIcon
 import org.koin.compose.koinInject
 
 /**
@@ -117,11 +120,14 @@ fun AiPanel(
                 ) {
                     Text(s.result.action.label + " 결과", style = MaterialTheme.typography.labelMedium)
                     Text(s.result.resultText, style = MaterialTheme.typography.bodyMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         OutlinedButton(onClick = { onApplyToNote(s.result.resultText) }) {
                             Text("메모에 반영")
                         }
-                        TextButton(onClick = vm::reset) { Text("닫기") }
+                        IconButton(onClick = vm::reset) { Icon(CloseXIcon, contentDescription = "닫기") }
                     }
                 }
             }
@@ -136,7 +142,7 @@ fun AiPanel(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    TextButton(onClick = vm::reset) { Text("닫기") }
+                    IconButton(onClick = vm::reset) { Icon(CloseXIcon, contentDescription = "닫기") }
                 }
             }
         }

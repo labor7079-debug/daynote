@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -31,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.domain.model.Task
+import com.kangtaeyoung.daynote.ui.theme.AddPlusIcon
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveGeneralTasksUseCase
@@ -88,6 +91,7 @@ fun TodoScreen(
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedTextField(
                     value = text,
@@ -96,10 +100,10 @@ fun TodoScreen(
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = {
+                IconButton(onClick = {
                     vm.add(text)
                     text = ""
-                }) { Text("추가") }
+                }) { Icon(AddPlusIcon, contentDescription = "추가", tint = MaterialTheme.colorScheme.primary) }
             }
 
             // 기간 필터 — 전체/오늘/최근 7일/최근 30일(메모 목록과 동일).

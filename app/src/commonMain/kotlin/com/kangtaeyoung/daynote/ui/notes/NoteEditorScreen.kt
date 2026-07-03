@@ -17,6 +17,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -68,6 +71,10 @@ import com.kangtaeyoung.daynote.domain.usecase.UpdateTaskUseCase
 import com.kangtaeyoung.daynote.ui.components.AppBackHandler
 import com.kangtaeyoung.daynote.ui.components.MarkdownText
 import com.kangtaeyoung.daynote.ui.components.TaskRow
+import com.kangtaeyoung.daynote.ui.theme.AddPlusIcon
+import com.kangtaeyoung.daynote.ui.theme.BackArrowIcon
+import com.kangtaeyoung.daynote.ui.theme.DeleteTrashIcon
+import com.kangtaeyoung.daynote.ui.theme.PenIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -178,7 +185,9 @@ fun NoteEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    TextButton(onClick = requestBack) { Text("뒤로") }
+                    IconButton(onClick = requestBack) {
+                        Icon(BackArrowIcon, contentDescription = "뒤로")
+                    }
                 },
                 actions = {
                     TextButton(
@@ -194,11 +203,13 @@ fun NoteEditorScreen(
                             }
                         },
                     ) { Text(aiShare.actionLabel) }
-                    TextButton(onClick = onOpenInk) { Text("필기") }
+                    IconButton(onClick = onOpenInk) { Icon(PenIcon, contentDescription = "필기") }
                     TextButton(onClick = { preview = !preview }) {
                         Text(if (preview) "편집" else "미리보기")
                     }
-                    TextButton(onClick = { vm.deleteCurrent(onBack) }) { Text("삭제") }
+                    IconButton(onClick = { vm.deleteCurrent(onBack) }) {
+                        Icon(DeleteTrashIcon, contentDescription = "삭제")
+                    }
                 },
             )
         },
@@ -373,6 +384,7 @@ private fun TaskInput(onAdd: (String) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         OutlinedTextField(
             value = text,
@@ -381,9 +393,9 @@ private fun TaskInput(onAdd: (String) -> Unit) {
             singleLine = true,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = {
+        IconButton(onClick = {
             onAdd(text)
             text = ""
-        }) { Text("추가") }
+        }) { Icon(AddPlusIcon, contentDescription = "추가", tint = MaterialTheme.colorScheme.primary) }
     }
 }

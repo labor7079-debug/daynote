@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -23,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kangtaeyoung.daynote.domain.usecase.SearchNotesUseCase
 import com.kangtaeyoung.daynote.ui.components.NoteListItem
+import com.kangtaeyoung.daynote.ui.theme.BackArrowIcon
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,7 +43,9 @@ fun SearchScreen(
         topBar = {
             TopAppBar(
                 title = { Text("검색") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("뒤로") } },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(BackArrowIcon, contentDescription = "뒤로") }
+                },
             )
         },
     ) { padding ->

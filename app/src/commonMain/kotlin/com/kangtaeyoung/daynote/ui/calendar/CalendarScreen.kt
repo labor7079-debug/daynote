@@ -33,6 +33,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -103,6 +105,8 @@ import com.kangtaeyoung.daynote.ui.components.parseHexColor
 import com.kangtaeyoung.daynote.ui.components.spansDays
 import com.kangtaeyoung.daynote.ui.components.TopDestination
 import com.kangtaeyoung.daynote.ui.components.WithItemActions
+import com.kangtaeyoung.daynote.ui.theme.AddPlusIcon
+import com.kangtaeyoung.daynote.ui.theme.CloseXIcon
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -954,7 +958,9 @@ private fun DayDetail(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             SectionLabel("MEMO")
-            TextButton(onClick = onAddNote) { Text("+ 추가") }
+            IconButton(onClick = onAddNote) {
+                Icon(AddPlusIcon, contentDescription = "메모 추가", tint = MaterialTheme.colorScheme.primary)
+            }
         }
         if (notes.isEmpty()) {
             // 빈 안내 영역을 탭해도 곧바로 새 메모 작성으로 진입한다(+ 추가 버튼과 동일).
@@ -1159,7 +1165,11 @@ private fun TaskQuickAdd(
     var showEndPicker by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
@@ -1167,12 +1177,12 @@ private fun TaskQuickAdd(
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = {
+            IconButton(onClick = {
                 onAdd(text, allDay, hour, minute, endDate, endHour.takeIf { !allDay && endTimeOn }, endMinute.takeIf { !allDay && endTimeOn })
                 text = ""
                 endDate = null
                 endTimeOn = false
-            }) { Text("추가") }
+            }) { Icon(AddPlusIcon, contentDescription = "추가", tint = MaterialTheme.colorScheme.primary) }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("종일", style = MaterialTheme.typography.bodyMedium)
@@ -1204,7 +1214,14 @@ private fun TaskQuickAdd(
                 )
             }
             if (endDate != null) {
-                TextButton(onClick = { endDate = null }) { Text("지우기", style = MaterialTheme.typography.bodySmall) }
+                IconButton(onClick = { endDate = null }) {
+                    Icon(
+                        CloseXIcon,
+                        contentDescription = "기간 지우기",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
