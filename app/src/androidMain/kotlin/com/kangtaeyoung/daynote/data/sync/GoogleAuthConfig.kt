@@ -16,4 +16,10 @@ object GoogleAuthConfig {
 
     /** 이벤트 읽기/쓰기 범위. (전체 캘린더 관리가 필요하면 ".../auth/calendar" 로 확대) */
     const val CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+
+    /** 캘린더 목록 읽기 범위 — 공유받은 캘린더 표시(설정의 "표시할 캘린더")에 필요. */
+    const val CALENDARLIST_SCOPE = "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
+
+    /** 인가 요청에 쓰는 전체 범위. 범위가 늘면 기존 사용자는 동의 화면이 한 번 더 뜬다. */
+    val SCOPES = listOf(CALENDAR_SCOPE, CALENDARLIST_SCOPE)
 }

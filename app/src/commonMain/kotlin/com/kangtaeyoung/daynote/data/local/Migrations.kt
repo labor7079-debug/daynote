@@ -30,6 +30,24 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+/** v5 → v6: 구글 캘린더 외부 일정 캐시 테이블 추가(공유 캘린더 표시 — 읽기 전용 pull). */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `external_events` (" +
+                "`id` TEXT NOT NULL, `calendarId` TEXT NOT NULL, `calendarName` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, `startMillis` INTEGER NOT NULL, `endMillis` INTEGER, " +
+                "`allDay` INTEGER NOT NULL, `colorHex` TEXT, PRIMARY KEY(`id`))",
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_external_events_startMillis` ON `external_events` (`startMillis`)",
+        )
+        connection.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_external_events_calendarId` ON `external_events` (`calendarId`)",
+        )
+    }
+}
+
 /** v3 → v4: AI 결과 테이블 추가(Phase 4-B). noteId·createdAt 인덱스 포함. */
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(connection: SQLiteConnection) {

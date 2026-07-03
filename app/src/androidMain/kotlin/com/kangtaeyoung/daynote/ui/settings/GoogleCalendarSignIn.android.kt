@@ -50,7 +50,7 @@ actual fun rememberGoogleCalendarSignIn(): () -> Unit {
                 return@action
             }
             val request = AuthorizationRequest.builder()
-                .setRequestedScopes(listOf(Scope(GoogleAuthConfig.CALENDAR_SCOPE)))
+                .setRequestedScopes(GoogleAuthConfig.SCOPES.map(::Scope))
                 .build()
             Identity.getAuthorizationClient(activity)
                 .authorize(request)

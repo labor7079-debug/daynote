@@ -5,11 +5,13 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
 import com.kangtaeyoung.daynote.data.local.dao.AiResultDao
+import com.kangtaeyoung.daynote.data.local.dao.ExternalEventDao
 import com.kangtaeyoung.daynote.data.local.dao.NoteDao
 import com.kangtaeyoung.daynote.data.local.dao.SettingDao
 import com.kangtaeyoung.daynote.data.local.dao.TaskDao
 import com.kangtaeyoung.daynote.data.local.entity.AiResultEntity
 import com.kangtaeyoung.daynote.data.local.entity.AppSettingEntity
+import com.kangtaeyoung.daynote.data.local.entity.ExternalEventEntity
 import com.kangtaeyoung.daynote.data.local.entity.NoteEntity
 import com.kangtaeyoung.daynote.data.local.entity.NoteFtsEntity
 import com.kangtaeyoung.daynote.data.local.entity.TaskEntity
@@ -27,8 +29,9 @@ import com.kangtaeyoung.daynote.data.local.entity.TaskEntity
         NoteFtsEntity::class,
         AppSettingEntity::class,
         AiResultEntity::class,
+        ExternalEventEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 @ConstructedBy(AppDatabaseConstructor::class)
@@ -41,6 +44,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun settingDao(): SettingDao
 
     abstract fun aiResultDao(): AiResultDao
+
+    abstract fun externalEventDao(): ExternalEventDao
 
     companion object {
         const val DATABASE_NAME = "daynote.db"

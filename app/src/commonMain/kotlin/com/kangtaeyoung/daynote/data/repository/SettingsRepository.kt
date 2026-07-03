@@ -17,6 +17,11 @@ interface SettingsRepository {
     fun observeSyncEnabled(): Flow<Boolean>
     suspend fun setSyncEnabled(enabled: Boolean)
 
+    // 달력에 표시할 구글 캘린더(공유받은 캘린더 포함) — 체크된 캘린더 id 집합
+    fun observeVisibleGoogleCalendarIds(): Flow<Set<String>>
+    suspend fun getVisibleGoogleCalendarIds(): Set<String>
+    suspend fun setVisibleGoogleCalendarIds(ids: Set<String>)
+
     // AI 제목 자동생성 토글(저장 시 제목 비면 자동 생성) — 기본 켜짐
     fun observeAutoTitle(): Flow<Boolean>
     suspend fun isAutoTitleEnabled(): Boolean
@@ -58,6 +63,20 @@ class SettingsRepositoryImpl(
     override suspend fun setSyncEnabled(enabled: Boolean) {
         dao.put(AppSettingEntity(KEY_SYNC_ENABLED, enabled.toString()))
     }
+
+    // 캘린더 id 는 이메일/그룹 주소 형태라 줄바꿈을 포함하지 않는다 → 개행 구분 문자열로 저장.
+    override fun observeVisibleGoogleCalendarIds(): Flow<Set<String>> =
+        dao.observe(KEY_GOOGLE_VISIBLE_CALS).map { it.toIdSet() }
+
+    override suspend fun getVisibleGoogleCalendarIds(): Set<String> =
+        dao.get(KEY_GOOGLE_VISIBLE_CALS).toIdSet()
+
+    override suspend fun setVisibleGoogleCalendarIds(ids: Set<String>) {
+        dao.put(AppSettingEntity(KEY_GOOGLE_VISIBLE_CALS, ids.joinToString("\n")))
+    }
+
+    private fun String?.toIdSet(): Set<String> =
+        this?.lineSequence()?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet().orEmpty()
 
     // 기본 켜짐: 값이 없으면(=미설정) true, 명시적으로 "false" 일 때만 끔(알림 토글과 같은 정책).
     // 제목 없이 저장하면 AI(키 없으면 본문 첫 줄)로 자동 생성된다.
@@ -116,6 +135,7 @@ class SettingsRepositoryImpl(
     private companion object {
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_SYNC_ENABLED = "sync_enabled"
+        const val KEY_GOOGLE_VISIBLE_CALS = "google_visible_calendars"
         const val KEY_AUTO_TITLE = "auto_title"
         const val KEY_REMINDERS = "reminders_enabled"
         const val KEY_CLOUD_SYNC_ENABLED = "cloud_sync_enabled"

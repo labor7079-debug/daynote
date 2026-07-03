@@ -19,6 +19,16 @@ sealed interface SyncState {
     data class Error(val message: String) : SyncState
 }
 
+/** 구글 캘린더 목록의 한 항목 — 내 캘린더와 공유받은 캘린더를 모두 포함한다. */
+data class GoogleCalendarInfo(
+    val id: String,
+    val name: String,
+    /** 구글이 지정한 캘린더 배경색("#RRGGBB"). */
+    val colorHex: String?,
+    /** 기본(내) 캘린더 여부. */
+    val primary: Boolean,
+)
+
 /**
  * 구글 캘린더 동기화 추상화(설계원칙 4: 본체는 동기화 구현을 모른다).
  *
@@ -40,4 +50,11 @@ interface CalendarSyncManager {
 
     /** 지금 동기화(양방향). */
     suspend fun syncNow()
+
+    /**
+     * 계정의 캘린더 목록(공유받은 캘린더 포함) — 설정의 "표시할 캘린더" 체크 UI 용.
+     * 미지원 플랫폼/미로그인이면 실패 Result.
+     */
+    suspend fun listCalendars(): Result<List<GoogleCalendarInfo>> =
+        Result.failure(UnsupportedOperationException("이 플랫폼에서는 지원하지 않습니다."))
 }

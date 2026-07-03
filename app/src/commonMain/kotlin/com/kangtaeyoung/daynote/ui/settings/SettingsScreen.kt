@@ -1,15 +1,20 @@
 package com.kangtaeyoung.daynote.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -31,7 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kangtaeyoung.daynote.data.repository.SettingsRepository
@@ -39,7 +46,9 @@ import com.kangtaeyoung.daynote.data.security.ApiKeyProvider
 import com.kangtaeyoung.daynote.data.sync.CalendarSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncState
+import com.kangtaeyoung.daynote.data.sync.GoogleCalendarInfo
 import com.kangtaeyoung.daynote.data.sync.SyncState
+import com.kangtaeyoung.daynote.ui.components.parseHexColor
 import com.kangtaeyoung.daynote.domain.model.ThemeMode
 import org.koin.compose.koinInject
 
@@ -65,6 +74,10 @@ fun SettingsScreen(
     val autoTitle by vm.autoTitle.collectAsState()
     val remindersEnabled by vm.remindersEnabled.collectAsState()
     val backupMsg by vm.backupMsg.collectAsState()
+    val googleCalendars by vm.googleCalendars.collectAsState()
+    val visibleCalendarIds by vm.visibleCalendarIds.collectAsState()
+    val googleCalendarsLoading by vm.googleCalendarsLoading.collectAsState()
+    val googleCalendarsMsg by vm.googleCalendarsMsg.collectAsState()
     val startGoogleSignIn = rememberGoogleCalendarSignIn()
     val backupControls = rememberBackupControls(onImported = vm::importBackup, onResult = vm::setBackupMsg)
 
@@ -138,6 +151,17 @@ fun SettingsScreen(
                 }
                 OutlinedButton(onClick = vm::signOut, enabled = enabled) { Text("로그아웃") }
 
+                if (enabled) {
+                    GoogleCalendarPickSection(
+                        calendars = googleCalendars,
+                        visibleIds = visibleCalendarIds,
+                        loading = googleCalendarsLoading,
+                        message = googleCalendarsMsg,
+                        onLoad = vm::loadGoogleCalendars,
+                        onToggle = vm::setCalendarVisible,
+                    )
+                }
+
                 if (state is SyncState.NeedsSetup || state is SyncState.Error) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                     Text(
@@ -183,6 +207,60 @@ fun SettingsScreen(
                 message = backupMsg,
                 onExport = { vm.buildExport { json -> backupControls.exportTo(json) } },
                 onImport = { backupControls.importFrom() },
+            )
+        }
+    }
+}
+
+/**
+ * 표시할 구글 캘린더 선택 — 구글 캘린더 사이드바("다른 캘린더")처럼 캘린더별 색 점 + 체크박스.
+ * 체크한 캘린더(공유받은 것 포함)의 일정이 앱 달력에 읽기 전용으로 표시된다.
+ */
+@Composable
+private fun GoogleCalendarPickSection(
+    calendars: List<GoogleCalendarInfo>,
+    visibleIds: Set<String>,
+    loading: Boolean,
+    message: String?,
+    onLoad: () -> Unit,
+    onToggle: (String, Boolean) -> Unit,
+) {
+    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+    Text("표시할 캘린더", style = MaterialTheme.typography.titleSmall)
+    Text(
+        "공유받은 캘린더를 포함해, 체크한 캘린더의 일정이 달력에 표시됩니다(읽기 전용 — 앱에서 수정되지 않습니다).",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    OutlinedButton(onClick = onLoad, enabled = !loading) {
+        Text(if (loading) "불러오는 중…" else if (calendars.isEmpty()) "캘린더 목록 불러오기" else "목록 새로고침")
+    }
+    if (message != null) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    calendars.forEach { cal ->
+        val checked = cal.id in visibleIds
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = checked, onCheckedChange = { onToggle(cal.id, it) })
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(parseHexColor(cal.colorHex) ?: MaterialTheme.colorScheme.outline),
+            )
+            Text(
+                text = if (cal.primary) "${cal.name} (내 캘린더)" else cal.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp),
             )
         }
     }

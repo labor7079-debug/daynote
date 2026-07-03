@@ -6,6 +6,8 @@ import com.kangtaeyoung.daynote.data.local.buildDatabase
 import com.kangtaeyoung.daynote.data.remote.openai.OpenAiClient
 import com.kangtaeyoung.daynote.data.repository.AiRepository
 import com.kangtaeyoung.daynote.data.repository.AiRepositoryImpl
+import com.kangtaeyoung.daynote.data.repository.ExternalEventRepository
+import com.kangtaeyoung.daynote.data.repository.ExternalEventRepositoryImpl
 import com.kangtaeyoung.daynote.data.repository.NoteRepository
 import com.kangtaeyoung.daynote.data.repository.NoteRepositoryImpl
 import com.kangtaeyoung.daynote.data.repository.SettingsRepository
@@ -30,6 +32,7 @@ import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteTasksUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesUseCase
+import com.kangtaeyoung.daynote.domain.usecase.ObserveExternalEventsByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveTasksByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.FindRelatedNotesUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveUndatedNotesUseCase
@@ -59,6 +62,7 @@ val databaseModule: Module = module {
     single { get<AppDatabase>().taskDao() }
     single { get<AppDatabase>().settingDao() }
     single { get<AppDatabase>().aiResultDao() }
+    single { get<AppDatabase>().externalEventDao() }
 }
 
 /** Repository 계층(설계원칙 4). DAO 를 주입받아 도메인 모델을 제공한다. */
@@ -68,6 +72,8 @@ val repositoryModule: Module = module {
     single<NoteRepository> { NoteRepositoryImpl(get(), get()) }
     single<TaskRepository> { TaskRepositoryImpl(get(), get()) }
     single<SettingsRepository> { SettingsRepositoryImpl(get()) }
+    // 구글 캘린더 외부 일정(공유 캘린더 표시 — 읽기 전용 캐시 조회)
+    single<ExternalEventRepository> { ExternalEventRepositoryImpl(get()) }
     // 로컬 백업/복원(내보내기·가져오기) — DAO 직접 사용.
     single { BackupManager(get(), get()) }
     // AI(Phase 4-B): OpenAI 단일. ApiKeyProvider 는 platformModule 이 제공.
@@ -89,6 +95,7 @@ val useCaseModule: Module = module {
     factory { ObserveNotesByDateUseCase(get()) }
     factory { ObserveUndatedNotesUseCase(get()) }
     factory { ObserveTasksByDateUseCase(get()) }
+    factory { ObserveExternalEventsByDateUseCase(get()) }
     factory { SearchNotesUseCase(get()) }
     factory { FindRelatedNotesUseCase(get()) }
     factory { AddNoteUseCase(get()) }

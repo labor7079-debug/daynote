@@ -8,6 +8,7 @@ import com.kangtaeyoung.daynote.data.security.ApiKeyProvider
 import com.kangtaeyoung.daynote.data.sync.CalendarSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncState
+import com.kangtaeyoung.daynote.data.sync.GoogleCalendarInfo
 import com.kangtaeyoung.daynote.data.sync.SupabaseConfig
 import com.kangtaeyoung.daynote.data.sync.SyncState
 import com.kangtaeyoung.daynote.domain.model.ThemeMode
@@ -40,6 +41,46 @@ class SettingsViewModel(
 
     val syncEnabled: StateFlow<Boolean> = settings.observeSyncEnabled()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    // --- 표시할 구글 캘린더(공유받은 캘린더 포함) ---
+    private val _googleCalendars = MutableStateFlow<List<GoogleCalendarInfo>>(emptyList())
+    /** 불러온 캘린더 목록(체크 UI 용). "캘린더 목록 불러오기"를 눌러야 채워진다. */
+    val googleCalendars: StateFlow<List<GoogleCalendarInfo>> = _googleCalendars.asStateFlow()
+
+    private val _googleCalendarsMsg = MutableStateFlow<String?>(null)
+    val googleCalendarsMsg: StateFlow<String?> = _googleCalendarsMsg.asStateFlow()
+
+    private val _googleCalendarsLoading = MutableStateFlow(false)
+    val googleCalendarsLoading: StateFlow<Boolean> = _googleCalendarsLoading.asStateFlow()
+
+    /** 체크된(달력에 표시할) 캘린더 id 집합 — 영속. */
+    val visibleCalendarIds: StateFlow<Set<String>> = settings.observeVisibleGoogleCalendarIds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    fun loadGoogleCalendars() {
+        if (_googleCalendarsLoading.value) return
+        _googleCalendarsLoading.value = true
+        _googleCalendarsMsg.value = null
+        viewModelScope.launch {
+            sync.listCalendars()
+                .onSuccess { list ->
+                    _googleCalendars.value = list.sortedWith(compareByDescending<GoogleCalendarInfo> { it.primary }.thenBy { it.name })
+                    if (list.isEmpty()) _googleCalendarsMsg.value = "캘린더가 없습니다."
+                }
+                .onFailure { _googleCalendarsMsg.value = it.message ?: "캘린더 목록을 불러오지 못했습니다." }
+            _googleCalendarsLoading.value = false
+        }
+    }
+
+    /** 체크 변경 즉시 영속 + 동기화로 pull 반영(해제 시 캐시 정리도 pull 이 담당). */
+    fun setCalendarVisible(id: String, visible: Boolean) {
+        viewModelScope.launch {
+            val current = settings.getVisibleGoogleCalendarIds().toMutableSet()
+            if (visible) current += id else current -= id
+            settings.setVisibleGoogleCalendarIds(current)
+            sync.syncNow()
+        }
+    }
 
     // --- 클라우드(Supabase) 동기화 ---
     val cloudState: StateFlow<CloudSyncState> = cloud.state

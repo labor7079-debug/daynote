@@ -80,12 +80,14 @@ import com.kangtaeyoung.daynote.data.sync.CalendarSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncManager
 import com.kangtaeyoung.daynote.data.sync.CloudSyncState
 import com.kangtaeyoung.daynote.domain.holiday.KoreanHolidays
+import com.kangtaeyoung.daynote.domain.model.ExternalEvent
 import com.kangtaeyoung.daynote.domain.model.Note
 import com.kangtaeyoung.daynote.domain.model.Task
 import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
+import com.kangtaeyoung.daynote.domain.usecase.ObserveExternalEventsByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveTasksByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
@@ -97,6 +99,7 @@ import com.kangtaeyoung.daynote.ui.components.cloudSyncResultMessage
 import com.kangtaeyoung.daynote.ui.components.MiniCalendarDialog
 import com.kangtaeyoung.daynote.ui.components.NumberDropdown
 import com.kangtaeyoung.daynote.ui.components.TaskRow
+import com.kangtaeyoung.daynote.ui.components.parseHexColor
 import com.kangtaeyoung.daynote.ui.components.spansDays
 import com.kangtaeyoung.daynote.ui.components.TopDestination
 import com.kangtaeyoung.daynote.ui.components.WithItemActions
@@ -136,18 +139,21 @@ fun CalendarScreen(
     val updateNote = koinInject<UpdateNoteUseCase>()
     val addNote = koinInject<AddNoteUseCase>()
     val updateTask = koinInject<UpdateTaskUseCase>()
+    val observeExternalByDate = koinInject<ObserveExternalEventsByDateUseCase>()
     val vm = viewModel {
         CalendarViewModel(
             observeNotesByDate, observeTasksByDate, addTask, toggleTask, deleteTask, deleteNote,
-            updateNote, addNote, updateTask,
+            updateNote, addNote, updateTask, observeExternalByDate,
         )
     }
 
     val selectedDate by vm.selectedDate.collectAsState()
     val notesByDate by vm.notesByDate.collectAsState()
     val tasksByDate by vm.tasksByDate.collectAsState()
+    val externalByDate by vm.externalByDate.collectAsState()
     val notesForSelected by vm.notesForSelected.collectAsState()
     val tasksForSelected by vm.tasksForSelected.collectAsState()
+    val externalForSelected by vm.externalForSelected.collectAsState()
 
     var anchor by remember { mutableStateOf(today()) }
 
@@ -266,9 +272,9 @@ fun CalendarScreen(
                     ) { a ->
                         val days = if (compact) a.weekDays() else monthGridDays(a)
                         if (compact) {
-                            WeekAgenda(days, selectedDate, notesByDate, tasksByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                            WeekAgenda(days, selectedDate, notesByDate, tasksByDate, externalByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
                         } else {
-                            MonthGrid(a, days, selectedDate, notesByDate, tasksByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
+                            MonthGrid(a, days, selectedDate, notesByDate, tasksByDate, externalByDate, onSelect = vm::selectDate, onOpenNote = onOpenNote)
                         }
                     }
                 }
@@ -295,6 +301,7 @@ fun CalendarScreen(
                     date = selectedDate,
                     notes = notesForSelected,
                     tasks = tasksForSelected,
+                    externalEvents = externalForSelected,
                     onOpenNote = onOpenNote,
                     onAddNote = { onAddNoteForDate(selectedDate.startOfDayMillis()) },
                     onDeleteNote = vm::removeNote,
@@ -406,6 +413,7 @@ private fun MonthGrid(
     selected: LocalDate,
     notesByDate: Map<LocalDate, List<Note>>,
     tasksByDate: Map<LocalDate, List<Task>>,
+    externalByDate: Map<LocalDate, List<ExternalEvent>>,
     onSelect: (LocalDate) -> Unit,
     onOpenNote: (String) -> Unit,
 ) {
@@ -440,6 +448,7 @@ private fun MonthGrid(
                         isWeekend = i >= 5,
                         notes = notesByDate[day].orEmpty(),
                         tasks = tasksByDate[day].orEmpty(),
+                        external = externalByDate[day].orEmpty(),
                         laneTasks = bars.laneTasksByDay[day].orEmpty(),
                         rangedOverflow = bars.overflowByDay[day].orEmpty(),
                         weekStart = week.first(),
@@ -467,6 +476,7 @@ private fun DayCell(
     isWeekend: Boolean,
     notes: List<Note>,
     tasks: List<Task>,
+    external: List<ExternalEvent>,
     laneTasks: List<Task?>,
     rangedOverflow: List<Task>,
     weekStart: LocalDate,
@@ -524,6 +534,11 @@ private fun DayCell(
             }
             // "+N개 더" 탭 → 숨겨진 항목을 칸 아래로 펼치는 드롭다운. 날짜가 바뀌면 접힌 상태로 초기화.
             var expanded by remember(day) { mutableStateOf(false) }
+            // 구글 캘린더 외부 일정(읽기 전용) — 캘린더 색 점 + 제목.
+            val visibleExternal = if (expanded) external else external.take(2)
+            visibleExternal.forEach { event ->
+                ExternalEventLine(event, modifier = Modifier.padding(horizontal = 10.dp))
+            }
             val visibleNotes = if (expanded) notes else notes.take(2)
             visibleNotes.forEach { note ->
                 Text(
@@ -544,6 +559,7 @@ private fun DayCell(
             if (expanded) rangedOverflow.forEach { task -> TaskLineChip(task) }
             val more = (notes.size - 2).coerceAtLeast(0) +
                 (single.size - 2).coerceAtLeast(0) +
+                (external.size - 2).coerceAtLeast(0) +
                 rangedOverflow.size
             if (more > 0) {
                 Text(
@@ -757,6 +773,7 @@ private fun WeekAgenda(
     selected: LocalDate,
     notesByDate: Map<LocalDate, List<Note>>,
     tasksByDate: Map<LocalDate, List<Task>>,
+    externalByDate: Map<LocalDate, List<ExternalEvent>>,
     onSelect: (LocalDate) -> Unit,
     onOpenNote: (String) -> Unit,
 ) {
@@ -768,6 +785,7 @@ private fun WeekAgenda(
         days.forEach { day ->
             val notes = notesByDate[day].orEmpty()
             val tasks = tasksByDate[day].orEmpty()
+            val external = externalByDate[day].orEmpty()
             val isToday = day == today
             val isSunday = day.dayOfWeek == DayOfWeek.SUNDAY
             val isWeekend = isSunday || day.dayOfWeek == DayOfWeek.SATURDAY
@@ -814,13 +832,24 @@ private fun WeekAgenda(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    if (notes.isEmpty() && tasks.isEmpty()) {
+                    if (notes.isEmpty() && tasks.isEmpty() && external.isEmpty()) {
                         if (holidayName == null) {
                             Text("—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         // "+N개 더" 탭 → 숨겨진 항목을 아래로 펼치는 드롭다운(월 달력 칸과 동일 동작).
                         var expanded by remember(day) { mutableStateOf(false) }
+                        // 구글 캘린더 외부 일정(읽기 전용) — 캘린더 색 점 + 제목.
+                        val visibleExternal = if (expanded) external else external.take(2)
+                        visibleExternal.forEach { event -> ExternalEventLine(event) }
+                        if (!expanded && external.size > 2) {
+                            Text(
+                                "+일정 ${external.size - 2}개 더",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clickable { expanded = true },
+                            )
+                        }
                         val visibleNotes = if (expanded) notes else notes.take(3)
                         visibleNotes.forEach { n ->
                             Text(
@@ -851,7 +880,7 @@ private fun WeekAgenda(
                                 modifier = Modifier.clickable { expanded = true },
                             )
                         }
-                        if (expanded && (notes.size > 3 || tasks.size > 2)) {
+                        if (expanded && (notes.size > 3 || tasks.size > 2 || external.size > 2)) {
                             Text(
                                 "접기",
                                 style = MaterialTheme.typography.labelSmall,
@@ -873,6 +902,7 @@ private fun DayDetail(
     date: LocalDate,
     notes: List<Note>,
     tasks: List<Task>,
+    externalEvents: List<ExternalEvent>,
     onOpenNote: (String) -> Unit,
     onAddNote: () -> Unit,
     onDeleteNote: (String) -> Unit,
@@ -914,6 +944,13 @@ private fun DayDetail(
                 .background(MaterialTheme.colorScheme.tertiary),
         )
         Spacer(Modifier.height(6.dp))
+
+        // 구글 캘린더(공유받은 캘린더 포함) 일정 — 읽기 전용, 캘린더 색 점으로 구분.
+        if (externalEvents.isNotEmpty()) {
+            SectionLabel("GOOGLE")
+            externalEvents.forEach { event -> ExternalEventDetailRow(event) }
+            Spacer(Modifier.height(8.dp))
+        }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             SectionLabel("MEMO")
@@ -957,6 +994,77 @@ private fun DayDetail(
         }
         TaskQuickAdd(selectedDate = date, onAdd = onAddTask)
         Box(modifier = Modifier.heightIn(min = 24.dp))
+    }
+}
+
+/** 외부 일정의 "HH:mm" 또는 "HH:mm~HH:mm" 라벨. 종일이면 null. */
+private fun ExternalEvent.timeLabel(): String? {
+    if (allDay) return null
+    val start = startMillis.toHourMinuteLabel()
+    val end = endMillis?.toHourMinuteLabel()
+    return if (end != null) "$start~$end" else start
+}
+
+/**
+ * 달력 칸·주 아젠다의 구글 캘린더 일정 한 줄 — 캘린더 색 점 + 제목(읽기 전용).
+ * 색은 구글 캘린더에서 지정한 캘린더 색을 그대로 따른다.
+ */
+@Composable
+private fun ExternalEventLine(event: ExternalEvent, modifier: Modifier = Modifier) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .size(5.dp)
+                .clip(CircleShape)
+                .background(parseHexColor(event.colorHex) ?: MaterialTheme.colorScheme.outline),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = event.title,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** 상세의 구글 캘린더 일정 한 줄 — 색 점 + 제목 + (시각·캘린더명). 읽기 전용이라 조작 없음. */
+@Composable
+private fun ExternalEventDetailRow(event: ExternalEvent) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(parseHexColor(event.colorHex) ?: MaterialTheme.colorScheme.outline),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = event.title,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val sub = listOfNotNull(event.timeLabel(), event.calendarName).joinToString(" · ")
+            if (sub.isNotBlank()) {
+                Text(
+                    text = sub,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 

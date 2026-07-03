@@ -8,12 +8,14 @@ import com.kangtaeyoung.daynote.core.movedToDate
 import com.kangtaeyoung.daynote.core.startOfDayMillis
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.core.today
+import com.kangtaeyoung.daynote.domain.model.ExternalEvent
 import com.kangtaeyoung.daynote.domain.model.Note
 import com.kangtaeyoung.daynote.domain.model.Task
 import com.kangtaeyoung.daynote.domain.usecase.AddNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.AddTaskUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteNoteUseCase
 import com.kangtaeyoung.daynote.domain.usecase.DeleteTaskUseCase
+import com.kangtaeyoung.daynote.domain.usecase.ObserveExternalEventsByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveNotesByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ObserveTasksByDateUseCase
 import com.kangtaeyoung.daynote.domain.usecase.ToggleTaskUseCase
@@ -49,6 +51,7 @@ class CalendarViewModel(
     private val updateNote: UpdateNoteUseCase,
     private val addNote: AddNoteUseCase,
     private val updateTask: UpdateTaskUseCase,
+    private val observeExternalByDate: ObserveExternalEventsByDateUseCase,
 ) : ViewModel() {
 
     private val _selectedDate = MutableStateFlow(today())
@@ -86,6 +89,36 @@ class CalendarViewModel(
             byDate
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /**
+     * 보이는 범위의 구글 캘린더 외부 일정(읽기 전용)을 날짜별로 묶은 맵 — 달력 칸 표시용.
+     * 여러 날 일정은 걸치는 모든 날짜에 넣는다(기간 할 일과 같은 규칙).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val externalByDate: StateFlow<Map<LocalDate, List<ExternalEvent>>> = visibleRange
+        .flatMapLatest { (start, end) -> observeExternalByDate(start, end) }
+        .map { events ->
+            val byDate = mutableMapOf<LocalDate, MutableList<ExternalEvent>>()
+            events.forEach { event ->
+                val start = event.startMillis.toLocalDate()
+                val end = event.endMillis?.toLocalDate()?.takeIf { it > start } ?: start
+                var day = start
+                var guard = 0
+                while (day <= end && guard < MAX_SPAN_DAYS) {
+                    byDate.getOrPut(day) { mutableListOf() }.add(event)
+                    day = day.plus(1, DateTimeUnit.DAY)
+                    guard++
+                }
+            }
+            byDate
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /** 선택 날짜와 겹치는 외부 일정 — 상세 영역의 "GOOGLE" 섹션용. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val externalForSelected: StateFlow<List<ExternalEvent>> = _selectedDate
+        .flatMapLatest { date -> val (s, e) = date.dayRange(); observeExternalByDate(s, e) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val notesForSelected: StateFlow<List<Note>> = _selectedDate

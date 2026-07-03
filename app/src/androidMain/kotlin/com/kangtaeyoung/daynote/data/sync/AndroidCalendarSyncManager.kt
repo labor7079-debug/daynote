@@ -5,12 +5,19 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import com.kangtaeyoung.daynote.core.nowMillis
+import com.kangtaeyoung.daynote.core.startOfDayMillis
+import com.kangtaeyoung.daynote.core.today
+import com.kangtaeyoung.daynote.data.local.dao.ExternalEventDao
 import com.kangtaeyoung.daynote.data.local.dao.NoteDao
 import com.kangtaeyoung.daynote.data.local.dao.TaskDao
+import com.kangtaeyoung.daynote.data.local.entity.ExternalEventEntity
+import com.kangtaeyoung.daynote.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.plus
 import kotlin.coroutines.resume
 
 /**
@@ -20,12 +27,16 @@ import kotlin.coroutines.resume
  *   **무음 재로그인**: 한 번 동의한 계정은 [silentAccessToken] 으로 재시작·토큰 만료 후에도
  *   동의 화면 없이 토큰을 자동 확보한다 → 세션마다 로그인할 필요가 없다.
  * - 동기화(3-B2, 현재): **한 방향 push** — 날짜 있는 메모를 구글 캘린더 종일 이벤트로 생성/수정/삭제.
- *   (캘린더→앱 pull, 할 일 동기화는 다음 슬라이스.) 충돌은 추후 서버 타임스탬프 기준으로 확장.
+ *   (내 primary 캘린더 pull 은 다음 슬라이스.) 충돌은 추후 서버 타임스탬프 기준으로 확장.
+ * - **공유 캘린더 표시**: 설정에서 체크한 캘린더(공유받은 것 포함)의 이벤트를
+ *   [pullExternal] 로 읽어 로컬 캐시(external_events)에 통째로 교체 저장한다(읽기 전용).
  */
 class AndroidCalendarSyncManager(
     private val context: Context,
     private val noteDao: NoteDao,
     private val taskDao: TaskDao,
+    private val settings: SettingsRepository,
+    private val externalEventDao: ExternalEventDao,
 ) : CalendarSyncManager {
 
     private val api = CalendarApi()
@@ -69,7 +80,7 @@ class AndroidCalendarSyncManager(
      */
     private suspend fun silentAccessToken(): String? = suspendCancellableCoroutine { cont ->
         val request = AuthorizationRequest.builder()
-            .setRequestedScopes(listOf(Scope(GoogleAuthConfig.CALENDAR_SCOPE)))
+            .setRequestedScopes(GoogleAuthConfig.SCOPES.map(::Scope))
             .build()
         Identity.getAuthorizationClient(context)
             .authorize(request)
@@ -97,7 +108,7 @@ class AndroidCalendarSyncManager(
         }
         _state.value = SyncState.Syncing
         try {
-            pushAll(token)
+            doSync(token)
             _state.value = SyncState.Synced(nowMillis())
         } catch (e: CalendarApiException) {
             if (e.code == 401) {
@@ -106,7 +117,7 @@ class AndroidCalendarSyncManager(
                 val renewed = if (signedOut) null else silentAccessToken()
                 if (renewed != null) {
                     accessToken = renewed
-                    runCatching { pushAll(renewed) }
+                    runCatching { doSync(renewed) }
                         .onSuccess { _state.value = SyncState.Synced(nowMillis()) }
                         .onFailure { _state.value = SyncState.Error(it.message ?: "동기화 실패") }
                 } else {
@@ -118,6 +129,72 @@ class AndroidCalendarSyncManager(
         } catch (e: Exception) {
             _state.value = SyncState.Error(e.message ?: "동기화 실패")
         }
+    }
+
+    /** 한 번의 동기화 본체 — 앱→구글 push 후, 체크된 캘린더의 일정 pull(외부 캐시 교체). */
+    private suspend fun doSync(token: String) {
+        pushAll(token)
+        pullExternal(token)
+    }
+
+    override suspend fun listCalendars(): Result<List<GoogleCalendarInfo>> {
+        val token = ensureToken()
+            ?: return Result.failure(IllegalStateException("먼저 구글 로그인이 필요합니다."))
+        return runCatching {
+            api.listCalendars(token).map { it.toInfo() }
+        }.recoverCatching { e ->
+            // 403 = calendarlist 범위 미동의(범위 추가 전에 로그인한 계정) → 재로그인 안내.
+            if (e is CalendarApiException && e.code == 403) {
+                error("캘린더 목록 권한이 없습니다. '구글 로그인'을 다시 눌러 동의해 주세요.")
+            }
+            throw e
+        }
+    }
+
+    private fun RemoteCalendar.toInfo() = GoogleCalendarInfo(id = id, name = name, colorHex = colorHex, primary = primary)
+
+    /**
+     * 설정에서 체크한 캘린더(공유받은 것 포함)의 일정을 오늘 기준 -60일~+180일 창으로 읽어
+     * 로컬 캐시를 캘린더 단위로 통째로 교체한다. 체크 해제된 캘린더의 캐시는 지운다.
+     * 아무것도 체크돼 있지 않으면 API 호출 없이 캐시만 비운다(범위 미동의 계정도 기본 동기화는 무사).
+     */
+    private suspend fun pullExternal(token: String) {
+        val visible = settings.getVisibleGoogleCalendarIds()
+        if (visible.isEmpty()) {
+            externalEventDao.deleteAll()
+            return
+        }
+        externalEventDao.deleteExceptCalendars(visible.toList())
+
+        val windowStart = today().plus(-PULL_PAST_DAYS, DateTimeUnit.DAY).startOfDayMillis()
+        val windowEnd = today().plus(PULL_FUTURE_DAYS, DateTimeUnit.DAY).startOfDayMillis()
+        // 이름·색은 calendarList 에서 — 실패해도 일정 pull 은 계속(이름은 id 로 대체).
+        val calInfo = runCatching { api.listCalendars(token) }.getOrNull().orEmpty().associateBy { it.id }
+
+        for (calendarId in visible) {
+            val events = api.listEvents(token, calendarId, windowStart, windowEnd)
+            val info = calInfo[calendarId]
+            externalEventDao.replaceForCalendar(
+                calendarId,
+                events.map { ev ->
+                    ExternalEventEntity(
+                        id = "$calendarId:${ev.id}",
+                        calendarId = calendarId,
+                        calendarName = info?.name ?: calendarId,
+                        title = ev.title,
+                        startMillis = ev.startMillis,
+                        endMillis = ev.endMillis,
+                        allDay = ev.allDay,
+                        colorHex = info?.colorHex,
+                    )
+                },
+            )
+        }
+    }
+
+    private companion object {
+        const val PULL_PAST_DAYS = 60
+        const val PULL_FUTURE_DAYS = 180
     }
 
     /** 실제 push 본체 — 삭제 반영 → 메모 → 할 일. 실패는 예외로 올려 [syncNow] 가 처리한다. */

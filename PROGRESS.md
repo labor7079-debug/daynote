@@ -4,7 +4,20 @@
 >
 > _최종 업데이트: 2026-07-03_
 
-## 현재 위치: **v0.3.2 업데이트 업로드 대기(2026-07-03)** — 위젯 가득 채움(항목은 위쪽 정렬)·시각 입력 '분' 잘림 수정·세리프 글씨체 전앱 통일(Noto Serif KR 내장)
+## 현재 위치: **v0.4.0 업데이트 업로드 대기(2026-07-03)** — 구글 공유 캘린더 표시(읽기 전용 pull) + v0.3.x(위젯·시각 입력·세리프) 포함
+
+### 🔼 v0.4.0 업데이트 (2026-07-03 — 업로드 대기, v0.3.1·v0.3.2 미업로드분 포함)
+- **구글 캘린더 "표시할 캘린더"(공유받은 캘린더 포함, 읽기 전용)** — 구글 캘린더 사이드바("다른 캘린더") 컨셉:
+  - 설정 → 구글 캘린더 동기화 → **표시할 캘린더**: "캘린더 목록 불러오기" → 캘린더별 **색 점 + 체크박스**(공유 캘린더 포함, `calendarList.list`). 체크 즉시 영속(`google_visible_calendars`) + 동기화로 반영.
+  - **pull**: `syncNow()` 가 push 후 체크된 캘린더의 이벤트를 오늘 −60일~+180일 창으로 읽어(`events.list`, singleEvents) 로컬 캐시 `external_events`(Room **v6**, `MIGRATION_5_6`)에 캘린더 단위 통째 교체. 체크 해제 시 캐시 삭제. 오프라인에선 마지막 pull 결과 표시.
+  - **표시**: 월 달력 칸·주 아젠다에 **캘린더 색 점 + 제목** 줄(펼침/"+N개 더" 연동), 상세엔 **GOOGLE 섹션**(색 점·제목·시각·캘린더명). 읽기 전용 — 앱에서 수정/삭제 불가, 앱 메모/할 일과 분리.
+  - **스코프 추가**: `calendar.calendarlist.readonly` (기존 `calendar.events` 에 더해). ⚠️ **기존 로그인 계정은 "구글 로그인"을 한 번 다시 눌러 재동의 필요**(403 시 안내 문구 표시). 데스크톱은 기존대로 미지원(빈 캐시).
+  - 새 파일: `ExternalEventEntity/Dao`, `ExternalEvent`(domain), `ExternalEventRepository`, `ObserveExternalEventsByDateUseCase`, `ui/components/ColorExt.kt`. 수정: `CalendarApi`(listCalendars/listEvents), `AndroidCalendarSyncManager`(pullExternal), `CalendarSyncManager`(listCalendars 기본 구현), Settings 화면/VM, Calendar 화면/VM.
+- **버전**: versionCode **7** / versionName **0.4.0** / MSI **1.3.0**.
+- **산출물**: AAB `app/build/outputs/bundle/release/app-release.aab`(서명) · MSI `app/build/compose/binaries/main/msi/DayNote-1.3.0.msi` · 폴더형 `.../app/DayNote/`.
+- **개발자 할 일**: ① Play Console → 내부 테스트 → 새 버전(`7 (0.4.0)`) AAB 업로드. ② PC 는 MSI 1.3.0 실행(제자리 업그레이드). ③ (필요 시) Google Cloud Console → OAuth 동의화면 → 범위에 `calendar.calendarlist.readonly` 추가 — 테스트/개인 사용은 앱 내 재동의만으로 대체로 동작. ④ 기기 검증: 설정에서 목록 불러오기 → 공유 캘린더 체크 → 지금 동기화 → 달력 칸/상세에 색 점과 함께 표시·체크 해제 시 사라짐 · v0.3.x 항목(위젯 채움+위쪽 정렬·시:분·세리프) 회귀 확인.
+
+## (이전) v0.3.2 — 위젯 가득 채움(항목은 위쪽 정렬)·시각 입력 '분' 잘림 수정·세리프 글씨체 전앱 통일(Noto Serif KR 내장)
 
 ### 🔼 v0.3.2 업데이트 (2026-07-03 — 업로드 대기, v0.3.0·v0.3.1 미업로드분 포함)
 - **위젯 내용 가득 채움**(기기 스크린샷 피드백): 두 위젯 모두 내용이 위에 몰리고 아래가 비던 문제 →
