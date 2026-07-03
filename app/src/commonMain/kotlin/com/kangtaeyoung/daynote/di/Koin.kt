@@ -82,8 +82,9 @@ val repositoryModule: Module = module {
     // 클라우드 동기화(Phase 6, Supabase) — Ktor 라 양 플랫폼 공유. SecureStore 는 platformModule 제공.
     single { SupabaseSyncClient() }
     single<CloudSyncManager> { SupabaseCloudSyncManager(get(), get(), get(), get(), get()) }
-    // 자동 동기화 조율(앱 시작 + 변경 디바운스) — App() 에서 start.
-    single { AutoSyncCoordinator(get(), get(), get()) }
+    // 자동 동기화 조율(앱 시작 + 변경 디바운스, 클라우드 + 구글 캘린더) — App() 에서 start.
+    // CalendarSyncManager 는 platformModule 제공(Android=실연동, Desktop=비활성 스텁).
+    single { AutoSyncCoordinator(get(), get(), get(), get()) }
     // 할 일 알림 조율(앱 시작 + 변경 디바운스로 재예약). TaskReminderScheduler 는 platformModule 제공.
     single { com.kangtaeyoung.daynote.notification.ReminderCoordinator(get(), get(), get(), get()) }
 }
