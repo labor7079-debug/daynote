@@ -4,16 +4,16 @@
 >
 > _최종 업데이트: 2026-07-03_
 
-## 현재 위치: **v0.5.0 업데이트 업로드 대기(2026-07-03)** — PC 구글 캘린더 동기화(데스크톱 OAuth) 포함 전체 산출물 빌드 완료
+## 현재 위치: **v0.5.1 업데이트 업로드 대기(2026-07-03)** — PC 구글 캘린더 동기화(데스크톱 OAuth) + 드래그 메모↔To-Do 전환 포함 전체 산출물 빌드 완료
 
-### 🔼 v0.5.0 — PC(데스크톱) 구글 캘린더 동기화 (2026-07-03)
+### 🔼 v0.5.1 — PC(데스크톱) 구글 캘린더 동기화 + 드래그 전환 (2026-07-03)
 - **데스크톱 OAuth(PKCE 루프백)**: 설정의 "구글 로그인" → 시스템 브라우저 동의 → `http://127.0.0.1:{임시포트}` 콜백 → 토큰 교환. 리프레시 토큰을 `~/.daynote/secure.properties`(DesktopSecureStore)에 저장해 **재시작에도 무음 갱신**(브라우저 재동의 불필요). 새 의존성 0(ServerSocket + HttpURLConnection + kotlinx-serialization). `DesktopGoogleAuth.kt`(신규).
 - **동기화 본체 commonMain 승격**: androidMain `CalendarApi` → 공용 `GoogleCalendarApi`(Ktor, 양 플랫폼) + push/공유 캘린더 pull 로직 → `GoogleCalendarSyncCore`(공용). Android/Desktop 매니저는 **인증(토큰)만 담당**하고 본체는 코어에 위임 — PC 에서도 push·공유 캘린더 pull·"표시할 캘린더" 전부 동작. 스코프 상수도 공용(`GOOGLE_CALENDAR_SCOPES`).
 - **클라이언트 주입**: `keystore.properties` 의 `googleDesktopClientId`/`googleDesktopClientSecret` → 빌드 태스크(`generateDesktopOAuthProps`)가 데스크톱 리소스로 주입 → 런타임 로드(`DesktopOAuthConfig`). 값이 없으면 데스크톱 동기화 비활성(설정에 안내문). **발급값 추가 완료(2026-07-03) — 산출물에 주입 확인.**
 - **드래그로 메모↔To-Do 전환**(사용자 요청): 캘린더 상세에서 각 행 왼쪽의 **핸들(⋮⋮)을 끌어** 반대 섹션에 놓으면 전환 — 마우스·터치 공용. 끄는 동안 포인터를 따라다니는 고스트 칩("제목 → TO-DO")과 대상 섹션 하이라이트 표시. 메모→To-Do 는 제목+본문을 할 일 텍스트로(첫 줄이 표시 제목), To-Do→메모는 첫 줄=제목·나머지=본문. 원본은 소프트 삭제(동기화 안전). 행 본문의 탭/길게 누르기(이동·복사 메뉴)와 충돌하지 않도록 **핸들에서만 드래그 시작**. `CalendarViewModel.convertNoteToTask/convertTaskToNote` + `DragConvertRow`(CalendarScreen) + `DragHandleIcon`.
-- **버전**: versionCode **9** / versionName **0.5.0** / MSI **1.4.1**(드래그 전환 포함 재빌드 — 1.4.0 설치분 위 제자리 업그레이드용).
-- **산출물**: AAB `app/build/outputs/bundle/release/app-release.aab`(30.6MB, 서명) · MSI `app/build/compose/binaries/main/msi/DayNote-1.4.1.msi` · 폴더형 `.../app/DayNote/`.
-- **개발자 할 일**: ① Play Console → 내부 테스트 → `9 (0.5.0)` AAB 업로드(4~8 건너뜀). ② PC 는 MSI 1.4.1 설치 → 설정 → 구글 캘린더 동기화 → 동기화 사용 ON → **"구글 로그인"(브라우저 동의 1회)** → "캘린더 목록 불러오기" → 공유 캘린더 체크 → 달력에 표시 확인. ③ 재시작 후 로그인 없이 자동 동기화되는지 확인(무음 갱신). ④ 캘린더 상세에서 메모/할 일 행의 ⋮⋮ 핸들을 끌어 반대 섹션에 놓아 전환 확인(마우스·터치).
+- **버전**: versionCode **10** / versionName **0.5.1** / MSI **1.4.2**.
+- **산출물**: AAB `app/build/outputs/bundle/release/app-release.aab`(30.6MB, 서명) · MSI `app/build/compose/binaries/main/msi/DayNote-1.4.2.msi` · 폴더형 `.../app/DayNote/`.
+- **개발자 할 일**: ① Play Console → 내부 테스트 → `10 (0.5.1)` AAB 업로드(4~9 건너뜀). ② PC 는 MSI 1.4.2 설치 → 설정 → 구글 캘린더 동기화 → 동기화 사용 ON → **"구글 로그인"(브라우저 동의 1회)** → "캘린더 목록 불러오기" → 공유 캘린더 체크 → 달력에 표시 확인. ③ 재시작 후 로그인 없이 자동 동기화되는지 확인(무음 갱신). ④ 캘린더 상세에서 메모/할 일 행의 ⋮⋮ 핸들을 끌어 반대 섹션에 놓아 전환 확인(마우스·터치).
 
 ## (이전) v0.4.1 — 구글 공유 캘린더 표시 + 자동 동기화 + 아이콘 UI + AI 이력(브랜치 병합) + v0.3.x(위젯·시각 입력·세리프) 포함
 

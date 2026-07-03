@@ -124,8 +124,8 @@ android {
         applicationId = "com.kangtaeyoung.daynote"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.5.0"
+        versionCode = 10
+        versionName = "0.5.1"
     }
 
     signingConfigs {
@@ -186,7 +186,7 @@ compose.desktop {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "DayNote"
             // MSI 가 기존 설치를 제자리 업그레이드하도록 앱 업데이트마다 함께 올린다.
-            packageVersion = "1.4.1"
+            packageVersion = "1.4.2"
         }
     }
 }
