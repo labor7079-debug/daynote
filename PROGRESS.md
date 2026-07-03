@@ -4,9 +4,9 @@
 >
 > _최종 업데이트: 2026-07-03_
 
-## 현재 위치: **v0.4.0 업데이트 업로드 대기(2026-07-03)** — 구글 공유 캘린더 표시 + 자동 동기화 + 아이콘 UI + AI 이력(브랜치 병합) + v0.3.x(위젯·시각 입력·세리프) 포함
+## 현재 위치: **v0.4.1 업데이트 업로드 대기(2026-07-03)** — 구글 공유 캘린더 표시 + 자동 동기화 + 아이콘 UI + AI 이력(브랜치 병합) + v0.3.x(위젯·시각 입력·세리프) 포함
 
-### 🔼 v0.4.0 업데이트 (2026-07-03 — 업로드 대기, v0.3.1·v0.3.2 미업로드분 포함)
+### 🔼 v0.4.1 업데이트 (2026-07-03 — 업로드 대기, v0.3.1~v0.4.0 미업로드분 포함)
 - **구글 캘린더 "표시할 캘린더"(공유받은 캘린더 포함, 읽기 전용)** — 구글 캘린더 사이드바("다른 캘린더") 컨셉:
   - 설정 → 구글 캘린더 동기화 → **표시할 캘린더**: "캘린더 목록 불러오기" → 캘린더별 **색 점 + 체크박스**(공유 캘린더 포함, `calendarList.list`). 체크 즉시 영속(`google_visible_calendars`) + 동기화로 반영.
   - **pull**: `syncNow()` 가 push 후 체크된 캘린더의 이벤트를 오늘 −60일~+180일 창으로 읽어(`events.list`, singleEvents) 로컬 캐시 `external_events`(Room **v6**, `MIGRATION_5_6`)에 캘린더 단위 통째 교체. 체크 해제 시 캐시 삭제. 오프라인에선 마지막 pull 결과 표시.
@@ -17,9 +17,9 @@
 - **한글 텍스트 버튼 → 표준 아이콘**(사용자 요청): `AppIcons`(의존성 0 커스텀 벡터)에 ←·＋·휴지통·✕·돋보기·펜 추가. 뒤로(상단바 4곳)·추가(4곳, primary 색)·삭제(에디터)·검색(메모 목록)·필기(에디터)·닫기(AI 카드)·지우기(기간/종료일) 교체. 다이얼로그 취소/저장/나가기·하단 저장·"오늘" 등은 텍스트 유지. 전부 contentDescription(한글) 포함.
 - **AI 결과 이력 UI 병합**(과거 클라우드 세션 브랜치 `claude/session-history-review-jtdzf6` 를 main 위로 리베이스 후 ff 병합): 메모별 "지난 AI 결과 N" 접기/펼치기 — 항목마다 타임스탬프("M월 D일 HH:mm")·질문(Q.) 표시·"메모에 반영"·삭제(`DeleteAiResultUseCase`·`AiRepository.deleteResult`, 테스트 포함). 남은 작업의 「AI 이력("이전 결과 보기")」 해결.
 - **CI**: PR 자동 검증 잡(컴파일 + 데스크톱 단위 테스트, `.github/workflows/build.yml`) + gradlew 실행 권한(100755) — 같은 브랜치에서 병합.
-- **버전**: versionCode **7** / versionName **0.4.0** / MSI **1.3.0**.
-- **산출물**: AAB `app/build/outputs/bundle/release/app-release.aab`(서명) · MSI `app/build/compose/binaries/main/msi/DayNote-1.3.0.msi` · 폴더형 `.../app/DayNote/`.
-- **개발자 할 일**: ① Play Console → 내부 테스트 → 새 버전(`7 (0.4.0)`) AAB 업로드. ② PC 는 MSI 1.3.0 실행(제자리 업그레이드). ③ (필요 시) Google Cloud Console → OAuth 동의화면 → 범위에 `calendar.calendarlist.readonly` 추가 — 테스트/개인 사용은 앱 내 재동의만으로 대체로 동작. ④ 기기 검증: 설정에서 목록 불러오기 → 공유 캘린더 체크 → 지금 동기화 → 달력 칸/상세에 색 점과 함께 표시·체크 해제 시 사라짐 · v0.3.x 항목(위젯 채움+위쪽 정렬·시:분·세리프) 회귀 확인.
+- **버전**: versionCode **8** / versionName **0.4.1** / MSI **1.3.1**.
+- **산출물**: AAB `app/build/outputs/bundle/release/app-release.aab`(서명) · MSI `app/build/compose/binaries/main/msi/DayNote-1.3.1.msi` · 폴더형 `.../app/DayNote/`.
+- **개발자 할 일**: ① Play Console → 내부 테스트 → 새 버전(`8 (0.4.1)`) AAB 업로드(4~7 은 건너뜀). ② PC 는 MSI 1.3.1 실행(제자리 업그레이드). ③ (필요 시) Google Cloud Console → OAuth 동의화면 → 범위에 `calendar.calendarlist.readonly` 추가 — 테스트/개인 사용은 앱 내 재동의만으로 대체로 동작. ④ 기기 검증: 설정에서 목록 불러오기 → 공유 캘린더 체크 → 지금 동기화 → 달력 칸/상세에 색 점과 함께 표시·체크 해제 시 사라짐 · v0.3.x 항목(위젯 채움+위쪽 정렬·시:분·세리프) 회귀 확인.
 
 ## (이전) v0.3.2 — 위젯 가득 채움(항목은 위쪽 정렬)·시각 입력 '분' 잘림 수정·세리프 글씨체 전앱 통일(Noto Serif KR 내장)
 
