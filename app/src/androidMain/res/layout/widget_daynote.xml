@@ -2,8 +2,7 @@
 <!--
   DayNote 홈 위젯 — 오늘 날짜 헤더(+공휴일명) + 그날의 메모·할 일 최대 6줄 + ⊕(앱 열기).
   할 일 줄은 코드에서 widget_task_bg 배경을 입혀 메모와 구분한다(달력 칸과 같은 컨셉).
-  각 줄은 weight 슬롯(WidgetLineSlot)에 담겨 위젯 높이를 균등 분할한다 — 내용이 위쪽에
-  몰리지 않고 위젯 크기에 맞춰 가득 찬다.
+  항목 줄은 위쪽부터 차곡차곡 쌓인다(사용자 피드백 — 중앙 분산 아님).
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -53,53 +52,29 @@
             android:textColor="@color/widgetText" />
     </LinearLayout>
 
-    <FrameLayout
-        android:id="@+id/widget_slot1"
-        style="@style/WidgetLineSlot">
-        <TextView
-            android:id="@+id/widget_line1"
-            style="@style/WidgetLine" />
-    </FrameLayout>
+    <TextView
+        android:id="@+id/widget_line1"
+        style="@style/WidgetLine" />
 
-    <FrameLayout
-        android:id="@+id/widget_slot2"
-        style="@style/WidgetLineSlot">
-        <TextView
-            android:id="@+id/widget_line2"
-            style="@style/WidgetLine" />
-    </FrameLayout>
+    <TextView
+        android:id="@+id/widget_line2"
+        style="@style/WidgetLine" />
 
-    <FrameLayout
-        android:id="@+id/widget_slot3"
-        style="@style/WidgetLineSlot">
-        <TextView
-            android:id="@+id/widget_line3"
-            style="@style/WidgetLine" />
-    </FrameLayout>
+    <TextView
+        android:id="@+id/widget_line3"
+        style="@style/WidgetLine" />
 
-    <FrameLayout
-        android:id="@+id/widget_slot4"
-        style="@style/WidgetLineSlot">
-        <TextView
-            android:id="@+id/widget_line4"
-            style="@style/WidgetLine" />
-    </FrameLayout>
+    <TextView
+        android:id="@+id/widget_line4"
+        style="@style/WidgetLine" />
 
-    <FrameLayout
-        android:id="@+id/widget_slot5"
-        style="@style/WidgetLineSlot">
-        <TextView
-            android:id="@+id/widget_line5"
-            style="@style/WidgetLine" />
-    </FrameLayout>
+    <TextView
+        android:id="@+id/widget_line5"
+        style="@style/WidgetLine" />
 
-    <FrameLayout
-        android:id="@+id/widget_slot6"
-        style="@style/WidgetLineSlot">
-        <TextView
-            android:id="@+id/widget_line6"
-            style="@style/WidgetLine" />
-    </FrameLayout>
+    <TextView
+        android:id="@+id/widget_line6"
+        style="@style/WidgetLine" />
 
     <TextView
         android:id="@+id/widget_more"

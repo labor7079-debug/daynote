@@ -102,37 +102,21 @@
             android:textColor="@color/widgetAccent"
             android:visibility="gone" />
 
-        <FrameLayout
-            android:id="@+id/widget_mslot1"
-            style="@style/WidgetLineSlot">
-            <TextView
-                android:id="@+id/widget_mline1"
-                style="@style/WidgetLine" />
-        </FrameLayout>
+        <TextView
+            android:id="@+id/widget_mline1"
+            style="@style/WidgetLine" />
 
-        <FrameLayout
-            android:id="@+id/widget_mslot2"
-            style="@style/WidgetLineSlot">
-            <TextView
-                android:id="@+id/widget_mline2"
-                style="@style/WidgetLine" />
-        </FrameLayout>
+        <TextView
+            android:id="@+id/widget_mline2"
+            style="@style/WidgetLine" />
 
-        <FrameLayout
-            android:id="@+id/widget_mslot3"
-            style="@style/WidgetLineSlot">
-            <TextView
-                android:id="@+id/widget_mline3"
-                style="@style/WidgetLine" />
-        </FrameLayout>
+        <TextView
+            android:id="@+id/widget_mline3"
+            style="@style/WidgetLine" />
 
-        <FrameLayout
-            android:id="@+id/widget_mslot4"
-            style="@style/WidgetLineSlot">
-            <TextView
-                android:id="@+id/widget_mline4"
-                style="@style/WidgetLine" />
-        </FrameLayout>
+        <TextView
+            android:id="@+id/widget_mline4"
+            style="@style/WidgetLine" />
 
         <TextView
             android:id="@+id/widget_month_more"

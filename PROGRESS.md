@@ -9,7 +9,7 @@
 ### 🔼 v0.3.1 업데이트 (2026-07-03 — 업로드 대기, v0.3.0 미업로드분 포함)
 - **위젯 내용 가득 채움**(기기 스크린샷 피드백): 두 위젯 모두 내용이 위에 몰리고 아래가 비던 문제 →
   ① 월 위젯 미니 달력: 그리드가 남은 높이 전체 차지 + 6주 행이 weight 균등 분할(`widget_month.xml`·`widget_month_row.xml`) — 기본 크기에서 잘리던 마지막 주도 항상 표시, 위젯을 늘리면 달력도 같이 늘어남.
-  ② 항목 줄(하루 6줄·월 우측 4줄): 각 줄을 weight 슬롯(`WidgetLineSlot`, FrameLayout)으로 감싸 보이는 줄들이 높이를 균등 분할, 할 일 박스는 글자 높이만 감싸고 슬롯 중앙 정렬. 표시/숨김은 Provider 에서 슬롯 단위.
+  ② 항목 줄(하루 6줄·월 우측 4줄): **위쪽부터 차곡차곡 쌓임**(2차 피드백 — 처음 weight 슬롯 균등 분할로 만들었더니 "중간 정렬로 보인다" → 위쪽 정렬로 회귀). 빈 날 안내문만 남은 영역 세로 중앙.
 - **To-Do 시각 입력 '분' 잘림 수정**: `NumberDropdown` 컴팩트화 — 드롭다운 화살표 제거+숫자 가운데 정렬, 폭 92/96→64dp. "종료 시각" 줄(라벨+토글+시:분)이 폰 다이얼로그 폭에 들어감. 탭=드롭다운·직접 입력 그대로. (EditTaskDialog·캘린더 상세 추가란 공용)
 - **세리프 글씨체 전앱 통일**(사용자 요청 — 초기 Warm Journal 세리프로 회귀·확대): v0.3.0 에서 "기본체 통일"로 세리프를 제거했던 방향을 뒤집어, **Noto Serif KR(OFL) 3종(Regular/Medium/Bold)을 내장**(`app/src/commonMain/composeResources/font/`, +약 22MB)하고 Material3 타입 스케일 15종 전부에 적용(`Type.kt` `dayNoteTypography()`). PC(Windows)는 시스템 세리프가 한글 미지원(맑은 고딕 폴백)이라 내장이 필수. Android 홈 위젯도 `android:fontFamily="serif"`(시스템 Noto Serif) 통일. `compose.resources.packageOfResClass = com.kangtaeyoung.daynote.resources`. 라이선스 고지: `THIRD_PARTY_LICENSES.md`.
 - **버전**: versionCode **5** / versionName **0.3.1** / MSI **1.2.1**.
