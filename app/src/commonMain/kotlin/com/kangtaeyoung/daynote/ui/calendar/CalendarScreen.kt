@@ -10,6 +10,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,9 +22,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +44,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,20 +58,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.kangtaeyoung.daynote.core.firstOfMonthPlusMonths
 import com.kangtaeyoung.daynote.core.isoWeekNumber
 import com.kangtaeyoung.daynote.core.monthGridDays
@@ -107,6 +119,7 @@ import com.kangtaeyoung.daynote.ui.components.TopDestination
 import com.kangtaeyoung.daynote.ui.components.WithItemActions
 import com.kangtaeyoung.daynote.ui.theme.AddPlusIcon
 import com.kangtaeyoung.daynote.ui.theme.CloseXIcon
+import com.kangtaeyoung.daynote.ui.theme.DragHandleIcon
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -339,6 +352,14 @@ fun CalendarScreen(
                     onEditTask = { task ->
                         vm.editTask(task)
                         scope.launch { snackbarHostState.showSnackbar("할 일이 수정되었습니다 ✓") }
+                    },
+                    onConvertNoteToTask = { note ->
+                        vm.convertNoteToTask(note)
+                        scope.launch { snackbarHostState.showSnackbar("메모를 To-Do로 전환했습니다 ✓") }
+                    },
+                    onConvertTaskToNote = { task ->
+                        vm.convertTaskToNote(task)
+                        scope.launch { snackbarHostState.showSnackbar("To-Do를 메모로 전환했습니다 ✓") }
                     },
                 )
             }
@@ -918,6 +939,101 @@ private fun DayDetail(
     onMoveTask: (Task, LocalDate) -> Unit,
     onCopyTask: (Task, LocalDate) -> Unit,
     onEditTask: (Task) -> Unit,
+    onConvertNoteToTask: (Note) -> Unit,
+    onConvertTaskToNote: (Task) -> Unit,
+) {
+    // 드래그 전환 — 행의 핸들(⋮⋮)을 끌어 반대 섹션(MEMO↔TO-DO)에 놓으면 전환된다.
+    // 좌표는 전부 window 기준으로 통일(섹션 경계 판정·고스트 위치 계산 공용).
+    var dragPayload by remember(date) { mutableStateOf<ConvertDrag?>(null) }
+    var dragPointer by remember { mutableStateOf(Offset.Zero) }
+    var rootCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var memoBounds by remember { mutableStateOf(Rect.Zero) }
+    var todoBounds by remember { mutableStateOf(Rect.Zero) }
+    val hoverTodo = dragPayload?.note != null && todoBounds.contains(dragPointer)
+    val hoverMemo = dragPayload?.task != null && memoBounds.contains(dragPointer)
+
+    Box(modifier = Modifier.fillMaxWidth().onGloballyPositioned { rootCoords = it }) {
+        DayDetailContent(
+            date = date,
+            notes = notes,
+            tasks = tasks,
+            externalEvents = externalEvents,
+            onOpenNote = onOpenNote,
+            onAddNote = onAddNote,
+            onDeleteNote = onDeleteNote,
+            onAddTask = onAddTask,
+            onToggleTask = onToggleTask,
+            onDeleteTask = onDeleteTask,
+            onMoveNote = onMoveNote,
+            onCopyNote = onCopyNote,
+            onMoveTask = onMoveTask,
+            onCopyTask = onCopyTask,
+            onEditTask = onEditTask,
+            hoverMemo = hoverMemo,
+            hoverTodo = hoverTodo,
+            onMemoBounds = { memoBounds = it },
+            onTodoBounds = { todoBounds = it },
+            onDragStart = { payload, pos -> dragPayload = payload; dragPointer = pos },
+            onDragBy = { delta -> dragPointer += delta },
+            onDragEnd = {
+                val p = dragPayload
+                when {
+                    p?.note != null && todoBounds.contains(dragPointer) -> onConvertNoteToTask(p.note)
+                    p?.task != null && memoBounds.contains(dragPointer) -> onConvertTaskToNote(p.task)
+                }
+                dragPayload = null
+            },
+            onDragCancel = { dragPayload = null },
+        )
+        // 드래그 고스트 — 포인터를 따라다니는 작은 칩(어디로 전환되는지 표기).
+        dragPayload?.let { payload ->
+            val local = rootCoords?.windowToLocal(dragPointer) ?: Offset.Zero
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                tonalElevation = 4.dp,
+                shadowElevation = 4.dp,
+                modifier = Modifier.offset { IntOffset(local.x.roundToInt() + 14, local.y.roundToInt() + 14) },
+            ) {
+                Text(
+                    text = payload.label + if (payload.note != null) "  → TO-DO" else "  → MEMO",
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp).widthIn(max = 220.dp),
+                )
+            }
+        }
+    }
+}
+
+/** 드래그 전환 중인 항목(메모 또는 할 일 중 하나) + 고스트에 표시할 라벨. */
+private data class ConvertDrag(val label: String, val note: Note? = null, val task: Task? = null)
+
+@Composable
+private fun DayDetailContent(
+    date: LocalDate,
+    notes: List<Note>,
+    tasks: List<Task>,
+    externalEvents: List<ExternalEvent>,
+    onOpenNote: (String) -> Unit,
+    onAddNote: () -> Unit,
+    onDeleteNote: (String) -> Unit,
+    onAddTask: (String, Boolean, Int, Int, LocalDate?, Int?, Int?) -> Unit,
+    onToggleTask: (String) -> Unit,
+    onDeleteTask: (String) -> Unit,
+    onMoveNote: (Note, LocalDate) -> Unit,
+    onCopyNote: (Note, LocalDate) -> Unit,
+    onMoveTask: (Task, LocalDate) -> Unit,
+    onCopyTask: (Task, LocalDate) -> Unit,
+    onEditTask: (Task) -> Unit,
+    hoverMemo: Boolean,
+    hoverTodo: Boolean,
+    onMemoBounds: (Rect) -> Unit,
+    onTodoBounds: (Rect) -> Unit,
+    onDragStart: (ConvertDrag, Offset) -> Unit,
+    onDragBy: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         // 날짜 헤더 — 클레이 스와시(캘린더 헤더와 통일). 공휴일이면 이름을 클레이로 병기.
@@ -956,50 +1072,142 @@ private fun DayDetail(
             Spacer(Modifier.height(8.dp))
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("MEMO")
-            IconButton(onClick = onAddNote) {
-                Icon(AddPlusIcon, contentDescription = "메모 추가", tint = MaterialTheme.colorScheme.primary)
+        // MEMO 섹션 — 드롭 대상 경계 추적 + To-Do 를 끌어올 때 하이라이트.
+        Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { onMemoBounds(it.boundsInWindow()) }
+                .background(
+                    if (hoverMemo) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                    RoundedCornerShape(12.dp),
+                ),
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                SectionLabel("MEMO")
+                IconButton(onClick = onAddNote) {
+                    Icon(AddPlusIcon, contentDescription = "메모 추가", tint = MaterialTheme.colorScheme.primary)
+                }
             }
-        }
-        if (notes.isEmpty()) {
-            // 빈 안내 영역을 탭해도 곧바로 새 메모 작성으로 진입한다(+ 추가 버튼과 동일).
-            Text(
-                "이 날의 메모가 없습니다. 탭하여 추가하세요.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onAddNote)
-                    .padding(vertical = 14.dp, horizontal = 12.dp),
-            )
-        }
-        notes.forEach { note ->
-            NoteDetailRow(
-                note = note,
-                onOpen = { onOpenNote(note.id) },
-                onDelete = { onDeleteNote(note.id) },
-                onMoveTo = { d -> onMoveNote(note, d) },
-                onCopyTo = { d -> onCopyNote(note, d) },
-            )
+            if (notes.isEmpty()) {
+                // 빈 안내 영역을 탭해도 곧바로 새 메모 작성으로 진입한다(+ 추가 버튼과 동일).
+                Text(
+                    "이 날의 메모가 없습니다. 탭하여 추가하세요.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onAddNote)
+                        .padding(vertical = 14.dp, horizontal = 12.dp),
+                )
+            }
+            notes.forEach { note ->
+                DragConvertRow(
+                    key = note.id,
+                    onStart = { pos ->
+                        onDragStart(ConvertDrag(label = note.title.ifBlank { "(제목 없음)" }, note = note), pos)
+                    },
+                    onDragBy = onDragBy,
+                    onEnd = onDragEnd,
+                    onCancel = onDragCancel,
+                ) {
+                    NoteDetailRow(
+                        note = note,
+                        onOpen = { onOpenNote(note.id) },
+                        onDelete = { onDeleteNote(note.id) },
+                        onMoveTo = { d -> onMoveNote(note, d) },
+                        onCopyTo = { d -> onCopyNote(note, d) },
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(8.dp))
 
-        SectionLabel("TO-DO")
-        tasks.forEach { task ->
-            TaskRow(
-                task = task,
-                onToggle = { onToggleTask(task.id) },
-                onDelete = { onDeleteTask(task.id) },
-                onMoveTo = { d -> onMoveTask(task, d) },
-                onCopyTo = { d -> onCopyTask(task, d) },
-                onUpdate = onEditTask,
-            )
+        // TO-DO 섹션 — 드롭 대상 경계 추적 + 메모를 끌어올 때 하이라이트.
+        Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { onTodoBounds(it.boundsInWindow()) }
+                .background(
+                    if (hoverTodo) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                    RoundedCornerShape(12.dp),
+                ),
+        ) {
+            SectionLabel("TO-DO")
+            tasks.forEach { task ->
+                DragConvertRow(
+                    key = task.id,
+                    onStart = { pos ->
+                        val head = task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { "(내용 없음)" }
+                        onDragStart(ConvertDrag(label = head, task = task), pos)
+                    },
+                    onDragBy = onDragBy,
+                    onEnd = onDragEnd,
+                    onCancel = onDragCancel,
+                ) {
+                    TaskRow(
+                        task = task,
+                        onToggle = { onToggleTask(task.id) },
+                        onDelete = { onDeleteTask(task.id) },
+                        onMoveTo = { d -> onMoveTask(task, d) },
+                        onCopyTo = { d -> onCopyTask(task, d) },
+                        onUpdate = onEditTask,
+                    )
+                }
+            }
+            TaskQuickAdd(selectedDate = date, onAdd = onAddTask)
         }
-        TaskQuickAdd(selectedDate = date, onAdd = onAddTask)
         Box(modifier = Modifier.heightIn(min = 24.dp))
+    }
+}
+
+/**
+ * 드래그 핸들(⋮⋮)이 붙은 행 — 핸들을 끌면 [onStart]/[onDragBy]/[onEnd] 로 전환 드래그를 보고한다.
+ * 행 본문의 탭/길게 누르기(이동·복사 메뉴)와 충돌하지 않도록 핸들에서만 드래그가 시작된다.
+ */
+@Composable
+private fun DragConvertRow(
+    key: String,
+    onStart: (Offset) -> Unit,
+    onDragBy: (Offset) -> Unit,
+    onEnd: () -> Unit,
+    onCancel: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    // pointerInput 은 key 로 고정되므로 최신 콜백을 rememberUpdatedState 로 참조한다(스테일 클로저 방지).
+    val currentOnStart by rememberUpdatedState(onStart)
+    val currentOnDragBy by rememberUpdatedState(onDragBy)
+    val currentOnEnd by rememberUpdatedState(onEnd)
+    val currentOnCancel by rememberUpdatedState(onCancel)
+    var handleCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            DragHandleIcon,
+            contentDescription = "끌어서 메모/To-Do 전환",
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier
+                .size(20.dp)
+                .onGloballyPositioned { handleCoords = it }
+                .pointerInput(key) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            currentOnStart(handleCoords?.localToWindow(offset) ?: Offset.Zero)
+                        },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            currentOnDragBy(amount)
+                        },
+                        onDragEnd = { currentOnEnd() },
+                        onDragCancel = { currentOnCancel() },
+                    )
+                },
+        )
+        Spacer(Modifier.width(6.dp))
+        Box(modifier = Modifier.weight(1f)) { content() }
     }
 }
 

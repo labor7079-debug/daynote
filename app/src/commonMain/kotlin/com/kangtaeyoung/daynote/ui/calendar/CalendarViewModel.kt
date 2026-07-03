@@ -204,6 +204,33 @@ class CalendarViewModel(
         return end + (date.startOfDayMillis() - oldStart.toLocalDate().startOfDayMillis())
     }
 
+    // --- 드래그 전환(상세 영역) — 메모 ↔ To-Do ---
+
+    /** 메모 → To-Do 전환: 제목+본문을 할 일 텍스트로(첫 줄이 표시 제목), 원본 메모는 소프트 삭제. */
+    fun convertNoteToTask(note: Note) {
+        viewModelScope.launch {
+            val text = listOf(note.title, note.content)
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
+                .ifBlank { "(내용 없음)" }
+            val due = (note.date ?: note.createdAt).toLocalDate().startOfDayMillis()
+            addTask(text, noteId = null, dueDate = due, allDay = true, endDate = null)
+            deleteNote(note.id)
+        }
+    }
+
+    /** To-Do → 메모 전환: 첫 줄=제목, 나머지=본문. 원본 할 일은 소프트 삭제. */
+    fun convertTaskToNote(task: Task) {
+        viewModelScope.launch {
+            val lines = task.text.lines()
+            val title = lines.first().trim().ifBlank { "(제목 없음)" }
+            val content = lines.drop(1).joinToString("\n").trim()
+            val date = (task.dueDate ?: task.createdAt).toLocalDate().startOfDayMillis()
+            addNote(title, content, date)
+            deleteTask(task.id)
+        }
+    }
+
     fun moveTaskTo(task: Task, date: LocalDate) {
         viewModelScope.launch {
             updateTask(task.copy(dueDate = task.dueDateOn(date), endDate = task.endDateOn(date)))
