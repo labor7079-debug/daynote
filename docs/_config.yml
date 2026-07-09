@@ -2,7 +2,8 @@ title: DayNote
 description: 캘린더 위에 메모와 할 일이 얹히는, 오프라인 우선 노트 앱
 theme: jekyll-theme-minimal
 
-# 내부 작성 가이드는 공개 사이트에서 제외(개인정보 방침 페이지만 공개).
+# 내부 작성 가이드는 공개 사이트에서 제외(공개 페이지: index·개인정보방침·데이터삭제).
 exclude:
   - play-data-safety.md
   - play-store-listing.md
+  - play-reviewer-notes.md
