@@ -8,5 +8,6 @@ title: DayNote
 (Android · Windows · macOS · Linux)
 
 - [개인정보 처리방침](privacy-policy.html)
+- [계정·데이터 삭제 요청](data-deletion.html)
 
 문의: labor7079@gmail.com
