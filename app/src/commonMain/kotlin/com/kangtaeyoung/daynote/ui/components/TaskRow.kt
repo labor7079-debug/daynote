@@ -22,10 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import com.kangtaeyoung.daynote.core.isMidnight
-import com.kangtaeyoung.daynote.core.toHourMinuteLabel
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.domain.model.Task
+import com.kangtaeyoung.daynote.domain.model.scheduleLabel
 import kotlinx.datetime.LocalDate
 
 /**
@@ -109,27 +108,6 @@ fun TaskRow(
 }
 
 /**
- * 일정 라벨 — 같은 날 시각 범위는 "14:00~16:00", 여러 날 기간은 "7/2~7/4"
- * (시각 지정이면 시작·종료 시각 병기), 시각만 지정이면 "14:00". 종일 하루짜리는 null.
+ * 일정 라벨 — 공용 규칙([Task.scheduleLabel])에 위임한다. 캘린더 칩·홈 위젯과 표기가 항상 일치.
  */
-internal fun scheduleLabel(task: Task): String? {
-    val due = task.dueDate ?: return null
-    val end = task.endDate
-    return when {
-        end != null && end.toLocalDate() == due.toLocalDate() ->
-            "${due.toHourMinuteLabel()}~${end.toHourMinuteLabel()}"
-        end != null -> {
-            val s = due.toLocalDate()
-            val e = end.toLocalDate()
-            val startLabel =
-                if (task.allDay) "${s.monthNumber}/${s.dayOfMonth}"
-                else "${s.monthNumber}/${s.dayOfMonth} ${due.toHourMinuteLabel()}"
-            val endLabel =
-                if (end.isMidnight()) "${e.monthNumber}/${e.dayOfMonth}"
-                else "${e.monthNumber}/${e.dayOfMonth} ${end.toHourMinuteLabel()}"
-            "$startLabel~$endLabel"
-        }
-        !task.allDay -> due.toHourMinuteLabel()
-        else -> null
-    }
-}
+internal fun scheduleLabel(task: Task): String? = task.scheduleLabel()

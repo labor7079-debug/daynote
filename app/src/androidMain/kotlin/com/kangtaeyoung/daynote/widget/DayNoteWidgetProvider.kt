@@ -15,7 +15,9 @@ import com.kangtaeyoung.daynote.core.dayRange
 import com.kangtaeyoung.daynote.core.today
 import com.kangtaeyoung.daynote.data.local.dao.NoteDao
 import com.kangtaeyoung.daynote.data.local.dao.TaskDao
+import com.kangtaeyoung.daynote.data.repository.toDomain
 import com.kangtaeyoung.daynote.domain.holiday.KoreanHolidays
+import com.kangtaeyoung.daynote.domain.model.scheduleLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -106,7 +108,9 @@ class DayNoteWidgetProvider : AppWidgetProvider() {
                 notes.take(3).forEach { add(Line("· " + it.title.ifBlank { "(제목 없음)" }, isTask = false, done = false)) }
                 tasks.take(3).forEach {
                     val head = it.text.lineSequence().firstOrNull()?.trim().orEmpty()
-                    add(Line((if (it.isDone) "✓ " else "☐ ") + head, isTask = true, done = it.isDone))
+                    // 시각이 지정된 할 일은 시작(및 종료) 시각을 앞에 병기 — 앱 캘린더 칩과 동일 규칙.
+                    val time = it.toDomain().scheduleLabel()?.let { s -> "$s " }.orEmpty()
+                    add(Line((if (it.isDone) "✓ " else "☐ ") + time + head, isTask = true, done = it.isDone))
                 }
             }
 
