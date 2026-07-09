@@ -2,9 +2,17 @@
 
 > 내일 이어가기 위한 인수인계 메모. 상세 명세는 [CLAUDE.md](CLAUDE.md), 빌드 절차는 [BUILD.md](BUILD.md).
 >
-> _최종 업데이트: 2026-07-03_
+> _최종 업데이트: 2026-07-09_
 
-## 현재 위치: **v0.5.1 업데이트 업로드 대기(2026-07-03)** — PC 구글 캘린더 동기화(데스크톱 OAuth) + 드래그 메모↔To-Do 전환 포함 전체 산출물 빌드 완료
+## 현재 위치: **v0.5.2 업데이트 준비(2026-07-09)** — 키보드 스크롤 개선 + 캘린더 시각 표기 확대 + 시각 드롭다운 5분 단위
+
+### 🔼 v0.5.2 — 캘린더 상세 UX 손질 (2026-07-09)
+- **키보드가 가린 영역 스크롤**(사용자 피드백): 캘린더 상세에서 To-Do 를 입력할 때 소프트 키보드에 가려진 아래쪽이 스크롤되지 않던 문제 → 스크롤 컨테이너(1단 스택 · 2단 상세)에 `imePadding()` 추가해 키보드 높이만큼 하단 여백 확보 → 가려진 입력란까지 스크롤로 올려볼 수 있음. (`enableEdgeToEdge` + softInput 미조정 환경이라 IME 인셋을 직접 소비해야 함.)
+- **캘린더 칩 시각 표기 확대**(사용자 피드백): 달력 칸·주 아젠다의 할 일 칩(`TaskLineChip`)이 `endDate` 있을 때만 시각을 보이던 것 → 상세 뷰(`TaskRow`)의 `scheduleLabel` 을 공용화해 **시각만 지정한 할 일도 시작(및 종료) 시각을 병기**("14:00" / "14:00~16:00" / 여러 날은 "7/2 14:00~7/4 16:00"). `TaskRow.scheduleLabel` `private`→`internal`.
+- **시각 입력 '분' 5분 단위**(사용자 요청): `NumberDropdown` 에 `step` 파라미터(기본 1) 추가 → 분 드롭다운은 `step = 5`(00·05·10…55)만 노출. 직접 키보드 입력은 여전히 자유(1분 단위 가능). 캘린더 상세 추가란·`EditTaskDialog` 시작/종료 분 4곳 공용.
+- **버전**: versionCode **11** / versionName **0.5.2** / MSI **1.4.3**.
+- **산출물**: (빌드 대기) AAB `app/build/outputs/bundle/release/app-release.aab` · MSI `app/build/compose/binaries/main/msi/DayNote-1.4.3.msi`.
+- **개발자 할 일**: ① 산출물 빌드(AAB/MSI) → Play Console 내부 테스트 `11 (0.5.2)` 업로드 · PC MSI 1.4.3 제자리 업그레이드. ② 기기 검증: 할 일 입력 중 키보드 위로 하단 스크롤 확인 · 시각 지정 할 일이 달력에 시각과 함께 표기 · 분 드롭다운이 5분 간격.
 
 ### 🔼 v0.5.1 — PC(데스크톱) 구글 캘린더 동기화 + 드래그 전환 (2026-07-03)
 - **데스크톱 OAuth(PKCE 루프백)**: 설정의 "구글 로그인" → 시스템 브라우저 동의 → `http://127.0.0.1:{임시포트}` 콜백 → 토큰 교환. 리프레시 토큰을 `~/.daynote/secure.properties`(DesktopSecureStore)에 저장해 **재시작에도 무음 갱신**(브라우저 재동의 불필요). 새 의존성 0(ServerSocket + HttpURLConnection + kotlinx-serialization). `DesktopGoogleAuth.kt`(신규).

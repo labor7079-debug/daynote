@@ -112,7 +112,7 @@ fun TaskRow(
  * 일정 라벨 — 같은 날 시각 범위는 "14:00~16:00", 여러 날 기간은 "7/2~7/4"
  * (시각 지정이면 시작·종료 시각 병기), 시각만 지정이면 "14:00". 종일 하루짜리는 null.
  */
-private fun scheduleLabel(task: Task): String? {
+internal fun scheduleLabel(task: Task): String? {
     val due = task.dueDate ?: return null
     val end = task.endDate
     return when {

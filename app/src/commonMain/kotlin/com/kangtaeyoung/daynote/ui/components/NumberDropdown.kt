@@ -33,6 +33,8 @@ fun NumberDropdown(
     range: IntRange,
     onValue: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    // 드롭다운 목록의 값 간격. 분은 5로 주면 00·05·10…55 만 노출(직접 입력은 자유).
+    step: Int = 1,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var text by remember(value) { mutableStateOf(value.toString().padStart(2, '0')) }
@@ -56,7 +58,7 @@ fun NumberDropdown(
             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            range.forEach { n ->
+            (range step step).forEach { n ->
                 DropdownMenuItem(
                     text = { Text(n.toString().padStart(2, '0')) },
                     onClick = {

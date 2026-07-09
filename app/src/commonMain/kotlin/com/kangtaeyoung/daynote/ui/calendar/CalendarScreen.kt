@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -114,6 +115,7 @@ import com.kangtaeyoung.daynote.ui.components.MiniCalendarDialog
 import com.kangtaeyoung.daynote.ui.components.NumberDropdown
 import com.kangtaeyoung.daynote.ui.components.TaskRow
 import com.kangtaeyoung.daynote.ui.components.parseHexColor
+import com.kangtaeyoung.daynote.ui.components.scheduleLabel
 import com.kangtaeyoung.daynote.ui.components.spansDays
 import com.kangtaeyoung.daynote.ui.components.TopDestination
 import com.kangtaeyoung.daynote.ui.components.WithItemActions
@@ -380,12 +382,15 @@ fun CalendarScreen(
                         Column(
                             modifier = Modifier.weight(0.42f).fillMaxHeight().verticalScroll(rememberScrollState())
                                 .padding(top = 12.dp)
+                                // 키보드가 뜨면 그만큼 하단 여백을 확보해 가려진 입력 영역까지 스크롤되게.
+                                .imePadding()
                                 .then(detailSwipe),
                         ) { detailArea() }
                     }
                 } else {
                     // 1단(스택) — 폰=주 아젠다, 태블릿 세로/폴드 접힘=월 달력, 아래 상세.
-                    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    // imePadding: 키보드가 뜰 때 하단 여백을 확보해 To-Do 입력창 아래 영역까지 스크롤로 볼 수 있게.
+                    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()) {
                         calendarArea()
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                         Box(modifier = Modifier.fillMaxWidth().then(detailSwipe)) {
@@ -665,14 +670,9 @@ private fun computeWeekBars(
 @Composable
 private fun TaskLineChip(task: Task) {
     val head = task.text.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { "(내용 없음)" }
-    val range = task.endDate?.let { end ->
-        val due = task.dueDate
-        val s = (due ?: task.createdAt).toLocalDate()
-        val e = end.toLocalDate()
-        // 같은 날 시각 범위(몇 시간짜리)는 "14:00~16:00", 여러 날 기간은 "9/14~9/16".
-        if (e == s && due != null) "${due.toHourMinuteLabel()}~${end.toHourMinuteLabel()} "
-        else "${s.monthNumber}/${s.dayOfMonth}~${e.monthNumber}/${e.dayOfMonth} "
-    }.orEmpty()
+    // 시각이 지정된 할 일은 시작(및 종료) 시각을, 여러 날 기간은 날짜 범위를 앞에 병기한다.
+    // 상세 뷰(TaskRow)와 같은 라벨 규칙을 공유한다 — 시각만 지정이면 "14:00", 범위면 "14:00~16:00".
+    val range = scheduleLabel(task)?.let { "$it " }.orEmpty()
     Text(
         text = range + head,
         style = MaterialTheme.typography.labelSmall,
@@ -1398,7 +1398,7 @@ private fun TaskQuickAdd(
             if (!allDay) {
                 NumberDropdown(label = "시", value = hour, range = 0..23, onValue = { hour = it }, modifier = Modifier.width(64.dp))
                 Text(":")
-                NumberDropdown(label = "분", value = minute, range = 0..59, onValue = { minute = it }, modifier = Modifier.width(64.dp))
+                NumberDropdown(label = "분", value = minute, range = 0..59, onValue = { minute = it }, modifier = Modifier.width(64.dp), step = 5)
             }
         }
         // 종료 시각(선택 사항) — 시작 시각만으로 끝나는 일이 아니면 함께 지정.
@@ -1409,7 +1409,7 @@ private fun TaskQuickAdd(
                 if (endTimeOn) {
                     NumberDropdown(label = "시", value = endHour, range = 0..23, onValue = { endHour = it }, modifier = Modifier.width(64.dp))
                     Text(":")
-                    NumberDropdown(label = "분", value = endMinute, range = 0..59, onValue = { endMinute = it }, modifier = Modifier.width(64.dp))
+                    NumberDropdown(label = "분", value = endMinute, range = 0..59, onValue = { endMinute = it }, modifier = Modifier.width(64.dp), step = 5)
                 }
             }
         }
