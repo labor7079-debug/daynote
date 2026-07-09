@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  홈 위젯 목록(ListView)의 항목 한 줄 — 메모/할 일 공용. 할 일 배경 박스·글자색은 코드에서 입힌다.
+  고정 슬롯 대신 이 행이 위젯 높이만큼 반복되고 넘치면 스크롤된다.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_item_text"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="3dp"
+    android:fontFamily="serif"
+    android:paddingLeft="5dp"
+    android:paddingRight="5dp"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp"
+    android:textSize="12sp"
+    android:maxLines="1"
+    android:ellipsize="end"
+    android:textColor="@color/widgetText" />

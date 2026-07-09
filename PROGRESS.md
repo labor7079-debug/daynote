@@ -2,9 +2,20 @@
 
 > 내일 이어가기 위한 인수인계 메모. 상세 명세는 [CLAUDE.md](CLAUDE.md), 빌드 절차는 [BUILD.md](BUILD.md).
 >
-> _최종 업데이트: 2026-07-09_
+> _최종 업데이트: 2026-07-10_
 
-## 현재 위치: **v0.5.3 업데이트 준비(2026-07-09)** — 할 일 시각 표기를 홈 위젯·데스크톱까지 확장(단일 규칙 공용화)
+## 현재 위치: **v0.5.4 업데이트 준비(2026-07-10)** — 홈 위젯을 스크롤 목록(컬렉션)으로 전환 — 공간만큼 항목 표시
+
+### 🔼 v0.5.4 — 홈 위젯 스크롤 목록화 (2026-07-10)
+- **고정 슬롯 → 스크롤 ListView**(사용자 피드백: 위젯이 커도 2~4개만 떠 공간 낭비): 두 위젯의 "오늘의 메모·할 일"을 `RemoteViewsService` 컬렉션(`DayNoteWidgetService`, 신규)으로 전환. 위젯 높이만큼 항목을 보여주고 넘치면 스크롤 — "+N개 더" 컷 폐지. 두 위젯이 같은 서비스·같은 목록(오늘 항목) 공유.
+- **구현**: `widget_list_item.xml`(행 레이아웃) 신규. `widget_daynote.xml`·`widget_month.xml` 의 고정 슬롯(`widget_line1..6`/`widget_mline1..4`·"+N개 더")을 `ListView`(`widget_list`/`widget_month_list`)로 교체(빈 목록은 기존 empty 뷰). 매니페스트에 `BIND_REMOTEVIEWS` 서비스 등록. 행 탭 → 앱 열기(`setPendingIntentTemplate`+빈 fill-in, API31+ 템플릿 MUTABLE). 데이터 변경 시 `notifyAppWidgetViewDataChanged` 로 목록 재조회. 월 위젯 좌측 미니 달력·마커는 그대로.
+- 시각 병기 규칙은 v0.5.3 의 `Task.scheduleLabel()` 를 팩토리에서 재사용 — 앱/데스크톱/위젯 표기 일치 유지. 위젯 세로 리사이즈 이미 허용(`resizeMode=horizontal|vertical`)이라 늘리면 더 많이 보임.
+- **데스크톱(PC)**: 위젯 개념 없음 — 캘린더 화면은 변화 없음(MSI 는 버전 동기화용 재빌드).
+- **버전**: versionCode **13** / versionName **0.5.4** / MSI **1.4.5**.
+- **산출물**: (빌드 대기) AAB `app/build/outputs/bundle/release/app-release.aab` · MSI `app/build/compose/binaries/main/msi/DayNote-1.4.5.msi`.
+- **개발자 할 일**: ① Play Console 내부 테스트 `13 (0.5.4)` AAB 업로드 · PC MSI 1.4.5 제자리 업그레이드. ② 기기 검증: 홈 위젯(작은/월)을 **세로로 늘리면 항목이 더 많이 보이고 스크롤**되는지 · 시각 표기·완료 취소선·탭 시 앱 열림 · 항목 추가/삭제/체크가 위젯에 반영.
+
+### 🔼 v0.5.3 — 할 일 시각 표기 확장(위젯·PC) (2026-07-09)
 
 ### 🔼 v0.5.3 — 할 일 시각 표기 확장(위젯·PC) (2026-07-09)
 - **시각 표기 규칙 공용화**: 할 일의 일정 라벨을 `Task.scheduleLabel()`(commonMain `domain/model/TaskFormat.kt`, 신규)로 단일화. 앱 캘린더 칩(`TaskLineChip`)·상세(`TaskRow`)·홈 위젯이 모두 이 하나를 참조 → 표기가 항상 일치. `TaskRow.scheduleLabel(task)` 은 이 확장에 위임하는 얇은 래퍼로 축소.

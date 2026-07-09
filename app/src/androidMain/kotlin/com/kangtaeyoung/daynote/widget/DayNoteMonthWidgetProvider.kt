@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
+import android.net.Uri
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.StyleSpan
@@ -17,15 +18,12 @@ import androidx.core.content.ContextCompat
 import com.kangtaeyoung.daynote.MainActivity
 import com.kangtaeyoung.daynote.R
 import com.kangtaeyoung.daynote.core.monthGridDays
-import com.kangtaeyoung.daynote.core.dayRange
 import com.kangtaeyoung.daynote.core.toLocalDate
 import com.kangtaeyoung.daynote.core.toMillisRange
 import com.kangtaeyoung.daynote.core.today
 import com.kangtaeyoung.daynote.data.local.dao.NoteDao
 import com.kangtaeyoung.daynote.data.local.dao.TaskDao
-import com.kangtaeyoung.daynote.data.repository.toDomain
 import com.kangtaeyoung.daynote.domain.holiday.KoreanHolidays
-import com.kangtaeyoung.daynote.domain.model.scheduleLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -40,7 +38,9 @@ import org.koin.core.context.GlobalContext
 /**
  * 월 그리드 홈 위젯 — 좌측 미니 월 달력(오늘=슬레이트 마커, 일요일·공휴일=클레이,
  * 메모/할 일 있는 날=밑줄+굵게) + 우측 오늘의 메모·할 일(삼성 캘린더 위젯 컨셉).
- * 갱신 경로는 [DayNoteWidgetProvider] 와 동일(30분 주기 + 앱 내 변경 + 시간대 변경).
+ *
+ * 우측 목록은 고정 슬롯이 아니라 **스크롤 ListView**([DayNoteWidgetService]) — 위젯 높이만큼
+ * 보여주고 넘치면 스크롤한다. 갱신 경로는 [DayNoteWidgetProvider] 와 동일.
  */
 class DayNoteMonthWidgetProvider : AppWidgetProvider() {
 
@@ -66,10 +66,6 @@ class DayNoteMonthWidgetProvider : AppWidgetProvider() {
 
         private val dowLabels = listOf("월", "화", "수", "목", "금", "토", "일")
         private fun koreanDow(dow: DayOfWeek): String = dowLabels[dow.isoDayNumber - 1]
-
-        private val lineIds = intArrayOf(
-            R.id.widget_mline1, R.id.widget_mline2, R.id.widget_mline3, R.id.widget_mline4,
-        )
 
         /** 배치된 모든 월 그리드 위젯을 다시 그린다(앱 내 데이터 변경 시 호출). */
         fun updateAll(context: Context) {
@@ -99,7 +95,7 @@ class DayNoteMonthWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.widget_month_holiday, View.GONE)
             }
 
-            // 그리드 범위의 메모·할 일 → 날짜별 유무(마커)와 오늘 항목(우측 목록)에 사용.
+            // 그리드 범위의 메모·할 일 → 날짜별 유무(마커)에 사용(우측 목록은 별도 ListView 어댑터가 담당).
             val koin = GlobalContext.getOrNull()
             val (gridStart, gridEnd) = gridDays.toMillisRange()
             val notes = runCatching { koin?.get<NoteDao>()?.observeByDateRange(gridStart, gridEnd)?.first() }
@@ -165,55 +161,24 @@ class DayNoteMonthWidgetProvider : AppWidgetProvider() {
                 views.addView(R.id.widget_month_grid, row)
             }
 
-            // 우측: 오늘의 메모·할 일(작은 위젯과 같은 규칙 — 할 일은 옅은 박스).
-            val (todayStart, todayEnd) = today.dayRange()
-            val todayNotes = notes.filter { it.date != null && it.date!! >= todayStart && it.date!! < todayEnd }
-            val todayTasks = tasks.filter { it.dueDate != null && it.dueDate!! >= todayStart && it.dueDate!! < todayEnd }
-
-            data class Line(val text: String, val isTask: Boolean, val done: Boolean)
-
-            val lines = buildList {
-                todayNotes.take(2).forEach { add(Line("· " + it.title.ifBlank { "(제목 없음)" }, isTask = false, done = false)) }
-                todayTasks.take(2).forEach {
-                    val head = it.text.lineSequence().firstOrNull()?.trim().orEmpty()
-                    // 시각이 지정된 할 일은 시작(및 종료) 시각을 앞에 병기 — 앱 캘린더 칩과 동일 규칙.
-                    val time = it.toDomain().scheduleLabel()?.let { s -> "$s " }.orEmpty()
-                    add(Line((if (it.isDone) "✓ " else "☐ ") + time + head, isTask = true, done = it.isDone))
-                }
+            // 우측 오늘 항목 → 스크롤 ListView(작은 위젯과 같은 서비스·같은 목록).
+            val svc = Intent(context, DayNoteWidgetService::class.java).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
-            lineIds.forEachIndexed { i, id ->
-                if (i < lines.size) {
-                    val line = lines[i]
-                    views.setViewVisibility(id, View.VISIBLE)
-                    views.setTextViewText(id, line.text)
-                    views.setInt(id, "setBackgroundResource", if (line.isTask) R.drawable.widget_task_bg else 0)
-                    views.setTextColor(
-                        id,
-                        ContextCompat.getColor(context, if (line.done) R.color.widgetTextDim else R.color.widgetText),
-                    )
-                } else {
-                    views.setViewVisibility(id, View.GONE)
-                }
-            }
-            val remaining = (todayNotes.size - 2).coerceAtLeast(0) + (todayTasks.size - 2).coerceAtLeast(0)
-            if (remaining > 0) {
-                views.setViewVisibility(R.id.widget_month_more, View.VISIBLE)
-                views.setTextViewText(R.id.widget_month_more, "+${remaining}개 더")
-            } else {
-                views.setViewVisibility(R.id.widget_month_more, View.GONE)
-            }
-            views.setViewVisibility(R.id.widget_month_empty, if (lines.isEmpty()) View.VISIBLE else View.GONE)
+            views.setRemoteAdapter(R.id.widget_month_list, svc)
+            views.setEmptyView(R.id.widget_month_list, R.id.widget_month_empty)
 
             val open = PendingIntent.getActivity(
-                context,
-                0,
-                Intent(context, MainActivity::class.java),
+                context, 0, Intent(context, MainActivity::class.java),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
             views.setOnClickPendingIntent(R.id.widget_month_root, open)
             views.setOnClickPendingIntent(R.id.widget_month_add, open)
+            views.setPendingIntentTemplate(R.id.widget_month_list, openTemplate(context))
 
             mgr.updateAppWidget(widgetId, views)
+            mgr.notifyAppWidgetViewDataChanged(widgetId, R.id.widget_month_list)
         }
     }
 }

@@ -102,31 +102,15 @@
             android:textColor="@color/widgetAccent"
             android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/widget_mline1"
-            style="@style/WidgetLine" />
-
-        <TextView
-            android:id="@+id/widget_mline2"
-            style="@style/WidgetLine" />
-
-        <TextView
-            android:id="@+id/widget_mline3"
-            style="@style/WidgetLine" />
-
-        <TextView
-            android:id="@+id/widget_mline4"
-            style="@style/WidgetLine" />
-
-        <TextView
-            android:id="@+id/widget_month_more"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:fontFamily="serif"
-            android:textSize="11sp"
-            android:textColor="@color/widgetTextDim"
-            android:visibility="gone" />
+        <!-- 오늘의 메모·할 일 — 스크롤 목록. 위젯 높이만큼 보여주고 넘치면 스크롤(고정 슬롯 폐지). -->
+        <ListView
+            android:id="@+id/widget_month_list"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="2dp"
+            android:divider="@null"
+            android:dividerHeight="0dp" />
 
         <TextView
             android:id="@+id/widget_month_empty"
