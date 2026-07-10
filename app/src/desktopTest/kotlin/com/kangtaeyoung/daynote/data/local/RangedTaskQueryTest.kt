@@ -1,6 +1,7 @@
 package com.kangtaeyoung.daynote.data.local
 
 import androidx.room.Room
+import com.kangtaeyoung.daynote.data.local.entity.TaskEntity
 import com.kangtaeyoung.daynote.data.repository.TaskRepositoryImpl
 import com.kangtaeyoung.daynote.data.sync.LocalChangeNotifier
 import kotlinx.coroutines.flow.first
@@ -49,6 +50,25 @@ class RangedTaskQueryTest {
         assertEquals(listOf("3일짜리"), tasks.observeTasksByDueDate(s3, e3).first().map { it.text })
         val (s4, e4) = dayRangeOf(d4) // 기간 종료 다음날(제외)
         assertEquals(emptyList(), tasks.observeTasksByDueDate(s4, e4).first().map { it.text })
+    }
+
+    @Test
+    fun ordering_timedByTime_thenUntimedByCreationOrder() = runBlocking<Unit> {
+        val d = 0L
+        val dao = db.taskDao()
+        val hour = 3_600_000L
+        // 작성 순서: 종일A(1) → 14시(2) → 09시(3) → 종일B(4). createdAt 을 명시해 결정적으로.
+        dao.upsert(TaskEntity(id = "1", text = "종일A", dueDate = d, allDay = true, createdAt = 100, updatedAt = 100))
+        dao.upsert(TaskEntity(id = "2", text = "14시", dueDate = d + 14 * hour, allDay = false, createdAt = 200, updatedAt = 200))
+        dao.upsert(TaskEntity(id = "3", text = "09시", dueDate = d + 9 * hour, allDay = false, createdAt = 300, updatedAt = 300))
+        dao.upsert(TaskEntity(id = "4", text = "종일B", dueDate = d, allDay = true, createdAt = 400, updatedAt = 400))
+
+        val (s, e) = dayRangeOf(d)
+        // 시각 지정건 먼저 시각 순(09→14), 종일건은 맨 뒤 작성 순(A→B).
+        assertEquals(
+            listOf("09시", "14시", "종일A", "종일B"),
+            tasks.observeTasksByDueDate(s, e).first().map { it.text },
+        )
     }
 
     @Test

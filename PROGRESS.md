@@ -4,7 +4,16 @@
 >
 > _최종 업데이트: 2026-07-10_
 
-## 현재 위치: **v0.5.4 업데이트 준비(2026-07-10)** — 홈 위젯을 스크롤 목록(컬렉션)으로 전환 — 공간만큼 항목 표시
+## 현재 위치: **v0.5.5 업데이트 준비(2026-07-10)** — 할 일 정렬: 시각건 먼저 시각 순, 시각 없는 건 맨 뒤(작성 순)
+
+### 🔼 v0.5.5 — 할 일 정렬 규칙 (2026-07-10)
+- **정렬 규칙**(사용자 요청): 하루의 할 일을 ① **시각을 지정한 것 먼저, 시작 시각 순** ② **시각 없는(종일) 것은 맨 뒤에 작성 순서**로 나열. `TaskDao.observeByDueDateRange` 의 `ORDER BY` 를 `isDone ASC, allDay ASC, dueDate ASC, sortOrder ASC, createdAt ASC` 로 변경 — 단일 지점 수정으로 캘린더 상세·달력 칸·홈 위젯 모두 일관 적용(모두 이 쿼리에서 나옴). 완료 항목이 뒤로 가는 기존 동작은 유지.
+- **테스트**: `RangedTaskQueryTest.ordering_timedByTime_thenUntimedByCreationOrder` 추가(09시·14시·종일A·종일B → 09→14→A→B) — 데스크톱 단위 테스트 통과.
+- **버전**: versionCode **14** / versionName **0.5.5** / MSI **1.4.6**.
+- **산출물**: (빌드 대기) AAB `app/build/outputs/bundle/release/app-release.aab` · MSI `app/build/compose/binaries/main/msi/DayNote-1.4.6.msi`.
+- **개발자 할 일**: ① Play Console 내부 테스트 `14 (0.5.5)` AAB 업로드 · PC MSI 1.4.6 제자리 업그레이드. ② 기기 검증: 같은 날 할 일이 시각순으로 뜨고 시각 없는 건 맨 아래 작성 순 · 위젯도 동일.
+
+### 🔼 v0.5.4 — 홈 위젯 스크롤 목록화 (2026-07-10)
 
 ### 🔼 v0.5.4 — 홈 위젯 스크롤 목록화 (2026-07-10)
 - **고정 슬롯 → 스크롤 ListView**(사용자 피드백: 위젯이 커도 2~4개만 떠 공간 낭비): 두 위젯의 "오늘의 메모·할 일"을 `RemoteViewsService` 컬렉션(`DayNoteWidgetService`, 신규)으로 전환. 위젯 높이만큼 항목을 보여주고 넘치면 스크롤 — "+N개 더" 컷 폐지. 두 위젯이 같은 서비스·같은 목록(오늘 항목) 공유.

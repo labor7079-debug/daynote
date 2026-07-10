@@ -83,14 +83,17 @@ interface TaskDao {
     /**
      * 특정 날짜(캘린더 동선)의 할 일 — **기간 겹침** 조회. 하루짜리(endDate=null)는 dueDate 가
      * 구간에 들면, 기간 할 일은 [dueDate, endDate] 가 구간과 겹치면 잡힌다(캘린더 bar 표시).
-     * 미완료 → 완료, 그다음 정렬순.
+     *
+     * 정렬(사용자 규칙): 미완료 → 완료, 그다음 **시각 지정(allDay=0) 먼저 시각 순**,
+     * **종일(allDay=1, 시각 없음)은 맨 뒤**에 작성 순서(sortOrder→createdAt)로. dueDate 는
+     * 시각 지정건에선 시각까지 담고, 종일건은 그날 자정이라 같은 날 안에서 동률 → 작성 순서로 떨어진다.
      */
     @Query(
         """
         SELECT * FROM tasks
         WHERE dueDate IS NOT NULL AND deletedAt IS NULL
           AND dueDate < :endOfDay AND COALESCE(endDate, dueDate) >= :startOfDay
-        ORDER BY isDone ASC, sortOrder ASC, createdAt ASC
+        ORDER BY isDone ASC, allDay ASC, dueDate ASC, sortOrder ASC, createdAt ASC
         """,
     )
     fun observeByDueDateRange(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>>
